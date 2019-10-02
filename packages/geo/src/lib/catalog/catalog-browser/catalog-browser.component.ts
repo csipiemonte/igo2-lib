@@ -7,7 +7,7 @@ import {
   OnDestroy
 } from '@angular/core';
 
-import { zip } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 
 import { EntityStore, EntityStoreWatcher } from '@igo2/common';
 import { Layer } from '../../layer/shared/layers/layer';
@@ -22,6 +22,13 @@ import {
   CatalogItemState,
   CatalogItemType
 } from '../shared';
+import { Research, SearchResult } from '../../search/shared/search.interfaces';
+import { concatMap, map, filter, toArray } from 'rxjs/operators';
+import { LayerOptions } from '../../layer/shared/layers/layer.interface';
+import { WMSDataSourceOptions } from '../../datasource/shared/datasources/wms-datasource.interface';
+import { SearchService } from '../../search/shared/search.service';
+import { ObjectUtils } from '@igo2/utils';
+import { generateIdFromSourceOptions } from '../../utils/id-generator';
 
 /**
  * Component to browse a catalog's groups and layers and display them on a map.
@@ -59,7 +66,8 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
 
   constructor(
     private layerService: LayerService,
-    private cdRef: ChangeDetectorRef
+    private cdRef: ChangeDetectorRef,
+    private searchService: SearchService
   ) {}
 
   /**
@@ -139,19 +147,62 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
     this.removeLayersFromMap([layer]);
   }
 
+
+  private matchCatalogWmsLayerWithServiceLayer(addedLayerName, addedLayerUrl): Observable<any> {
+    const wmsLayerType = 'wms'
+    const layerDataType = 'Layer'
+
+    const researches: Research[] = this.searchService.search(addedLayerName, { searchType: 'Layer', getEnabledOnly: false });
+    const requests = []
+    researches.map((research: Research) => { requests.push(research.request) })
+
+    const res = forkJoin(requests).pipe(
+      concatMap((results: SearchResult<LayerOptions>[][]) => { return results; }),
+      concatMap((results: SearchResult<LayerOptions>[]) => { return results; }),
+      map((results: SearchResult<LayerOptions>) => { return results; }),
+      filter((result: SearchResult) => result.meta.dataType === layerDataType),
+      filter((result: SearchResult) => result.data.sourceOptions.type === wmsLayerType),
+      filter((result: SearchResult) => (result.data.sourceOptions as WMSDataSourceOptions).url.indexOf(addedLayerUrl) !== -1),
+      filter((result: SearchResult) => (result.data.sourceOptions as WMSDataSourceOptions).params.layers === addedLayerName),
+      map((results: SearchResult) => { return results }),
+      toArray()
+    );
+    return res;
+  }
+
+
   /**
    * Add multiple layers to map
    * @param layers Catalog layers
    */
   private addLayersToMap(layers: CatalogItemLayer[]) {
-    const layers$ = layers.map((layer: CatalogItemLayer) => {
-      return this.layerService.createAsyncLayer(layer.options);
-    });
+    /*       const layers$ = layers.map((layer: CatalogItemLayer) => {
+             return this.layerService.createAsyncLayer(layer.options);
+           });*/
+    layers.forEach((layer: CatalogItemLayer) => {
+      const wmsDataSourceOptions = layer.options.sourceOptions as WMSDataSourceOptions;
+      const addedLayerName = wmsDataSourceOptions.params.layers;
+      const addedLayerUrl = wmsDataSourceOptions.url;
 
-    zip(...layers$).subscribe((oLayers: Layer[]) => {
-      this.store.state.updateMany(layers, { added: true });
-      this.map.addLayers(oLayers);
-    });
+      this.matchCatalogWmsLayerWithServiceLayer(addedLayerName, addedLayerUrl).subscribe(val => {
+        if (val.length > 0) {
+          layer.title = val[0].data.title;
+          layer.options.title = val[0].data.title;
+          layer.options.sourceOptions = ObjectUtils.mergeDeep(layer.options.sourceOptions, val[0].data.sourceOptions || {});
+          layer.options.id = generateIdFromSourceOptions(layer.options.sourceOptions);
+        }
+        this.layerService.createAsyncLayer(layer.options).subscribe(oLayer => {
+          this.map.addLayer(oLayer);
+          this.store.state.update(layer, { added: true });
+        });
+
+        /*  zip(...layers$).subscribe((oLayers: Layer[]) => {
+            this.store.state.updateMany(layers, { added: true });
+            this.map.addLayers(oLayers);
+            })
+           });*/
+      })
+    })
   }
 
   /**
