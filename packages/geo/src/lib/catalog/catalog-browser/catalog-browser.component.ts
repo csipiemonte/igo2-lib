@@ -152,7 +152,7 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
     const wmsLayerType = 'wms'
     const layerDataType = 'Layer'
 
-    const researches: Research[] = this.searchService.search(addedLayerName, { searchType: 'Layer', getEnabledOnly: false });
+    const researches: Research[] = this.searchService.search(addedLayerName.splice(0,50), { searchType: 'Layer', getEnabledOnly: false });
     const requests = []
     researches.map((research: Research) => { requests.push(research.request) })
 
