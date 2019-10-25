@@ -7,7 +7,7 @@ import {
   OnDestroy
 } from '@angular/core';
 
-import { Observable, forkJoin } from 'rxjs';
+import { Observable, forkJoin, zip } from 'rxjs';
 
 import { EntityStore, EntityStoreWatcher } from '@igo2/common';
 import { Layer } from '../../layer/shared/layers/layer';
@@ -153,20 +153,18 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
     const layerDataType = 'Layer'
 
     const researches: Research[] = this.searchService.search(addedLayerName.slice(0,50), { searchType: 'Layer', getEnabledOnly: false });
-    const requests = []
-    researches.map((research: Research) => { requests.push(research.request) })
+    const requests$ = []
+    researches.map((research: Research) => { requests$.push(research.request) })
 
-    const res = forkJoin(requests).pipe(
-      concatMap((results: SearchResult<LayerOptions>[][]) => { return results; }),
-      concatMap((results: SearchResult<LayerOptions>[]) => { return results; }),
-      map((results: SearchResult<LayerOptions>) => { return results; }),
-      filter((result: SearchResult) => result.meta.dataType === layerDataType),
-      filter((result: SearchResult) => result.data.sourceOptions.type === wmsLayerType),
-      filter((result: SearchResult) => (result.data.sourceOptions as WMSDataSourceOptions).url.indexOf(addedLayerUrl) !== -1),
-      filter((result: SearchResult) => (result.data.sourceOptions as WMSDataSourceOptions).params.layers === addedLayerName),
-      map((results: SearchResult) => { return results }),
-      toArray()
-    );
+    const res = zip(...requests$).pipe(
+      map((results: SearchResult<LayerOptions>[][]) => {
+        return [].concat.apply([], results)
+        .filter((result: SearchResult<LayerOptions>) => result.data.sourceOptions.type === wmsLayerType)
+        .filter((result: SearchResult<LayerOptions>) => result.meta.dataType === layerDataType)
+        .filter((result: SearchResult<LayerOptions>) => (result.data.sourceOptions as WMSDataSourceOptions).url.indexOf(addedLayerUrl) !== -1)
+        .filter((result: SearchResult<LayerOptions>) => (result.data.sourceOptions as WMSDataSourceOptions).params.layers === addedLayerName)
+      }))
+
     return res;
   }
 
@@ -187,7 +185,7 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
       this.matchCatalogWmsLayerWithServiceLayer(addedLayerName, addedLayerUrl).subscribe(val => {
         if (val.length > 0) {
           layer.title = val[0].data.title;
-          layer.options.title = val[0].data.title;
+         // layer.options.title = val[0].data.title;
           layer.options.sourceOptions = ObjectUtils.mergeDeep(layer.options.sourceOptions, val[0].data.sourceOptions || {});
           layer.options.id = generateIdFromSourceOptions(layer.options.sourceOptions);
         }
