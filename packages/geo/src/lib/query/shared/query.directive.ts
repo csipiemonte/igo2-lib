@@ -147,11 +147,13 @@ export class QueryDirective implements AfterViewInit, OnDestroy {
 
     const resolution = this.map.ol.getView().getResolution();
     const queryLayers = this.map.layers.filter(layerIsQueryable);
-    queries$.push(...this.queryService.query(queryLayers, {
-      coordinates: event.coordinate,
-      projection: this.map.projection,
-      resolution
-    }));
+    queries$.push(
+      ...this.queryService.query(queryLayers, {
+        coordinates: event.coordinate,
+        projection: this.map.projection,
+        resolution
+      })
+    );
 
     if (queries$.length === 0) {
       return;
@@ -177,27 +179,59 @@ export class QueryDirective implements AfterViewInit, OnDestroy {
    * Query features already present on the map
    * @param event OL map browser pointer event
    */
-  private doQueryFeatures(event: OlMapBrowserPointerEvent): Observable<Feature[]> {
-    const olFeatures = event.map.getFeaturesAtPixel(event.pixel, {
-      hitTolerance: this.queryFeaturesHitTolerance || 0,
-      layerFilter: this.queryFeaturesCondition ? this.queryFeaturesCondition : olLayerIsQueryable
-    });
-    const features = (olFeatures || []).map((olFeature: OlFeature) => {
-      return featureFromOl(olFeature, this.map.projection);
-    });
+  private doQueryFeatures(
+    event: OlMapBrowserPointerEvent
+  ): Observable<Feature[]> {
+    const clickedFeatures = [];
+
+    this.map.ol.forEachFeatureAtPixel(
+      event.pixel,
+      (featureOL: OlFeature, layerOL: OlLayer) => {
+        if (featureOL) {
+          if (featureOL.get('features')) {
+            featureOL = featureOL.get('features')[0];
+          }
+          const feature = featureFromOl(
+            featureOL,
+            this.map.projection,
+            layerOL
+          );
+          clickedFeatures.push(feature);
+        } else {
+          const feature = featureFromOl(
+            featureOL,
+            this.map.projection,
+            layerOL
+          );
+          clickedFeatures.push(feature);
+        }
+      },
+      {
+        hitTolerance: this.queryFeaturesHitTolerance || 0,
+        layerFilter: this.queryFeaturesCondition
+          ? this.queryFeaturesCondition
+          : olLayerIsQueryable
+      }
+    );
+
     const queryableLayers = this.map.layers.filter(layerIsQueryable);
-    features.forEach( (feature: Feature) => {
+    clickedFeatures.forEach((feature: Feature) => {
       queryableLayers.forEach((layer: AnyLayer) => {
         if (typeof layer.ol.getSource().hasFeature !== 'undefined') {
           if (layer.ol.getSource().hasFeature(feature.ol)) {
-              feature.meta.alias = this.queryService.getAllowedFieldsAndAlias(layer);
-              feature.meta.title = this.queryService.getQueryTitle(feature, layer);
+            feature.meta.alias = this.queryService.getAllowedFieldsAndAlias(
+              layer
+            );
+            feature.meta.title = this.queryService.getQueryTitle(
+              feature,
+              layer
+            );
           }
         }
       });
     });
 
-    return of(features);
+    return of(clickedFeatures);
   }
 
   /**
