@@ -184,7 +184,7 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
 
       this.matchCatalogWmsLayerWithServiceLayer(addedLayerName, addedLayerUrl).subscribe(val => {
         if (val.length > 0) {
-          layer.title = val[0].data.title;
+         // layer.title = val[0].data.title;
          // layer.options.title = val[0].data.title;
           layer.options.sourceOptions = ObjectUtils.mergeDeep(layer.options.sourceOptions, val[0].data.sourceOptions || {});
           layer.options.id = generateIdFromSourceOptions(layer.options.sourceOptions);
