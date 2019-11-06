@@ -98,18 +98,6 @@
     </mat-slider>
     <span>{{endYear}}</span>
     <p *ngIf= "options.enabled" class="date-below">{{year}}</p>
-    <div #actions class="igo-layer-actions-container">
-      <mat-slide-toggle (change)="toggleFilterState()" tooltip-position="below" matTooltipShowDelay="500"
-        [matTooltip]="'igo.geo.filter.toggleFilterState' | translate" [color]="color" [checked]="options.enabled"
-        [disabled]="!layer.visible">
-      </mat-slide-toggle>
-      <button [disabled]= "!options.enabled  || !layer.visible" mat-icon-button color="primary" (click)="playYear($event)">
-        <mat-icon svgIcon="{{playIcon}}"></mat-icon>
-       </button>
-      <button [disabled]="!options.enabled  || !layer.visible" mat-icon-button color="primary" (click)="resetFilter($event)">
-        <mat-icon svgIcon="{{resetIcon}}"></mat-icon>
-      </button>
-    </div>
   </div>
 
 <div *ngIf="style === 'slider' && type !== 'year'" class="igo-col igo-col-100 igo-col-100-m">
@@ -129,3 +117,16 @@
    <mat-icon svgIcon="{{playIcon}}"></mat-icon>
   </button>
 </div>
+
+<div #actions class="igo-layer-actions-container">
+    <mat-slide-toggle (change)="toggleFilterState()" tooltip-position="below" matTooltipShowDelay="500"
+      [matTooltip]="'igo.geo.filter.toggleFilterState' | translate" [color]="color" [checked]="options.enabled"
+      [disabled]="!layer.visible">
+    </mat-slide-toggle>
+    <button *ngIf="style === 'slider'" [disabled]= "(!options.enabled  || !layer.visible)" mat-icon-button color="primary" (click)="playYear($event)">
+      <mat-icon svgIcon="{{playIcon}}"></mat-icon>
+     </button>
+    <button [disabled]="!options.enabled  || !layer.visible" mat-icon-button color="primary" (click)="resetFilter($event)">
+      <mat-icon svgIcon="{{resetIcon}}"></mat-icon>
+    </button>
+  </div>
