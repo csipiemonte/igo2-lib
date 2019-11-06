@@ -35,26 +35,6 @@ export class TimeFilterFormComponent implements OnInit {
   public listYears: Array<string> = [];
   public startListYears: Array<string> = [];
   public endListYears: Array<string> = [];
-
-  @Input()
-  set currentValue(value: string) {
-    if (value) {
-      if (this.type !== TimeFilterType.YEAR) {
-        const valueArray = value.split('/');
-        if (valueArray.length > 0) {
-          const startDate = new Date(valueArray[0]);
-          const endDate = new Date(valueArray[1]);
-          if (!isNaN(startDate.valueOf())) {
-            this.startDate = startDate;
-          }
-          if (!isNaN(endDate.valueOf())) {
-            this.endDate = endDate;
-          }
-        }
-      }
-    }
-  }
-
   public interval: any;
   public playIcon = 'play-circle';
   public resetIcon = 'replay';
@@ -127,82 +107,64 @@ export class TimeFilterFormComponent implements OnInit {
   constructor() {}
 
   ngOnInit() {
-    if (this.startDate === undefined) {
-      const utcmin = new Date(this.min);
-      this.startDate = new Date(
-        utcmin.getTime() + utcmin.getTimezoneOffset() * 60000
-      );
-    }
-    if (this.endDate === undefined) {
-      const utcmax = new Date(this.max);
-      this.endDate = new Date(
-        utcmax.getTime() + utcmax.getTimezoneOffset() * 60000
-      );
-    }
-    if (this.startYear === undefined) {
-      this.startYear = new Date(this.startDate).getFullYear();
-      this.initStartYear = this.startYear;
-    }
-    if (this.endYear === undefined) {
-      this.endYear = new Date(this.endDate).getFullYear();
-      this.initEndYear = this.endYear;
-    }
-
-    if (!this.isRange) {
-      for (let i = this.startYear; i <= this.endYear + 1; i++) {
-        this.listYears.push(i);
-      }
-    } else {
-      for (let i = this.startYear; i < this.endYear; i++) {
-        this.startListYears.push(i);
-      }
-      for (let i = this.startYear + 1; i <= this.endYear; i++) {
-        this.endListYears.push(i);
-      }
-    }
-    this.options.enabled = this.options.enabled === undefined ? true : this.options.enabled;
+    this.initStartEnd();
     this.checkFilterValue();
+    this.options.enabled = this.options.enabled === undefined ? true : this.options.enabled;
+
     if (this.options.enabled) {
       if (!this.isRange && this.style === 'slider' && this.type === 'year') {
         this.yearChange.emit(this.year);
+      } else {
+        this.handleDateChange(undefined);
       }
     } else {
       this.storeCurrentFilterValue();
-      this.yearChange.emit(undefined); // TODO: FIX THIS for ALL OTHER TYPES STYLES OR RANGE.
+      this.yearChange.emit(undefined);
     }
   }
 
   storeCurrentFilterValue() {
-    // TODO: FIX THIS for ALL OTHER TYPES STYLES OR RANGE.
     if (!this.isRange && this.style === TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
         this.options.value = this.year.toString();
+    } else if (!this.options.value) {
+      const datetimeStart = this.startDate.toLocaleDateString() + ' ' + this.startDate.toLocaleTimeString();
+      const datetimeEnd = this.endDate.toLocaleDateString() + ' ' + this.endDate.toLocaleTimeString();
+      this.options.value = datetimeStart + '/' + datetimeEnd;
     }
   }
 
-  checkFilterValue() {
-    const timeFromWms = this.layer.dataSource.ol.getParams().time;
-    if (!this.isRange && this.style === TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
-      if (timeFromWms) {
-        this.year = new Date(timeFromWms.toString()).getFullYear() + 1;
-      } else if (this.options.value) {
-        this.year = new Date(this.options.value.toString()).getFullYear() + 1;
+  checkFilterValue(forcedValue ?: string) {
+    const timeValue = forcedValue || this.layer.dataSource.ol.getParams().time || this.options.value;
+
+    if (timeValue) {
+      if (!this.isRange && this.style === TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
+          this.year = new Date(timeValue.toString()).getFullYear() + 1;
       } else {
-        this.year = new Date(this.min).getFullYear() + 1;
+        const valueArray = timeValue.split('/');
+        if (valueArray.length > 1) {
+          const startDate = new Date(valueArray[0]);
+          const endDate = new Date(valueArray[1]);
+          if (!isNaN(startDate.valueOf())) {
+            this.startDate = startDate;
+          }
+          if (!isNaN(endDate.valueOf())) {
+            this.endDate = endDate;
+          }
+        } else {
+          const startDate = new Date(timeValue);
+          if (!isNaN(startDate.valueOf())) {
+            this.date = startDate;
+          }
+        }
       }
-    } else {
-      // TODO: FIX THIS for ALL OTHER TYPES STYLES OR RANGE.
     }
   }
 
   handleDateChange(event: any) {
     this.setupDateOutput();
     this.applyTypeChange();
-
-    // Only if is range, use 2 dates to make the range
-    if (this.isRange) {
-      this.change.emit([this.startDate, this.endDate]);
-    } else {
-      this.change.emit(this.startDate);
+    if (this.options.enabled) {
+      this.emitChange();
     }
   }
 
@@ -271,22 +233,24 @@ export class TimeFilterFormComponent implements OnInit {
     if (this.options.enabled) {
       if (!this.isRange && TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
         this.yearChange.emit(this.year);
+      } else {
+        this.emitChange();
       }
     } else {
       this.stopFilter();
-      this.storeCurrentFilterValue();
       this.change.emit(undefined); // TODO: FIX THIS for ALL OTHER TYPES STYLES OR RANGE.
     }
   }
 
   resetFilter(event: any) {
-    this.date = new Date(this.min);
-    this.year = this.date.getFullYear() + 1;
+    this.initStartEnd(true);
+    this.checkFilterValue((this.style === 'slider' ? this.listYears[0] : this.options.value));
+
     if (!this.isRange && TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
       this.yearChange.emit(this.year);
     } else {
       this.setupDateOutput();
-      this.change.emit(undefined); // TODO: FIX THIS for ALL OTHER TYPES STYLES OR RANGE.
+      this.emitChange();
     }
   }
 
@@ -492,5 +456,63 @@ export class TimeFilterFormComponent implements OnInit {
    */
   getStepDefinition(step) {
     return moment.duration(step).asMilliseconds();
+  }
+
+  initStartEnd(force?: boolean) {
+
+    if (this.date === undefined || force) {
+      const utcmin = new Date(this.min);
+      this.date = new Date(
+        utcmin.getTime() + utcmin.getTimezoneOffset() * 60000
+      );
+    }
+    if (this.startDate === undefined || force) {
+      const utcmin = new Date(this.min);
+      this.startDate = new Date(
+        utcmin.getTime() + utcmin.getTimezoneOffset() * 60000
+      );
+    }
+    if (this.endDate === undefined || force) {
+      const utcmax = new Date(this.max);
+      this.endDate = new Date(
+        utcmax.getTime() + utcmax.getTimezoneOffset() * 60000
+      );
+    }
+    if (this.startYear === undefined || force) {
+      this.startYear = new Date(this.startDate).getFullYear();
+      this.initStartYear = this.startYear;
+    }
+    if (this.endYear === undefined || force) {
+      this.endYear = new Date(this.endDate).getFullYear();
+      this.initEndYear = this.endYear;
+    }
+
+    if (!this.isRange) {
+      for (let i = this.startYear; i <= this.endYear + 1; i++) {
+        this.listYears.push(i);
+      }
+    } else {
+      for (let i = this.startYear; i < this.endYear; i++) {
+        this.startListYears.push(i);
+      }
+      for (let i = this.startYear + 1; i <= this.endYear; i++) {
+        this.endListYears.push(i);
+      }
+    }
+    if (!this.isRange && this.style === TimeFilterStyle.SLIDER && this.type === TimeFilterType.YEAR) {
+      this.year = new Date(this.min).getFullYear() + 1;
+    }
+  }
+
+  emitChange(forcedValue?: Date | [Date, Date]) {
+    if (forcedValue) {
+      this.change.emit(forcedValue);
+    }
+
+    if (this.isRange && !forcedValue) {
+      this.change.emit([this.startDate, this.endDate]);
+    } else {
+      this.change.emit(this.date);
+    }
   }
 }
