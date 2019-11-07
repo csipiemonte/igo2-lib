@@ -7,7 +7,7 @@ import {
   OnDestroy
 } from '@angular/core';
 
-import { Observable, forkJoin, zip } from 'rxjs';
+import { Observable, zip } from 'rxjs';
 
 import { EntityStore, EntityStoreWatcher } from '@igo2/common';
 import { Layer } from '../../layer/shared/layers/layer';
@@ -174,9 +174,6 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
    * @param layers Catalog layers
    */
   private addLayersToMap(layers: CatalogItemLayer[]) {
-    /*       const layers$ = layers.map((layer: CatalogItemLayer) => {
-             return this.layerService.createAsyncLayer(layer.options);
-           });*/
     layers.forEach((layer: CatalogItemLayer) => {
       const wmsDataSourceOptions = layer.options.sourceOptions as WMSDataSourceOptions;
       const addedLayerName = wmsDataSourceOptions.params.layers;
@@ -184,8 +181,6 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
 
       this.matchCatalogWmsLayerWithServiceLayer(addedLayerName, addedLayerUrl).subscribe(val => {
         if (val.length > 0) {
-         // layer.title = val[0].data.title;
-         // layer.options.title = val[0].data.title;
           layer.options.sourceOptions = ObjectUtils.mergeDeep(layer.options.sourceOptions, val[0].data.sourceOptions || {});
           layer.options.id = generateIdFromSourceOptions(layer.options.sourceOptions);
         }
@@ -193,12 +188,6 @@ export class CatalogBrowserComponent implements OnInit, OnDestroy {
           this.map.addLayer(oLayer);
           this.store.state.update(layer, { added: true });
         });
-
-        /*  zip(...layers$).subscribe((oLayers: Layer[]) => {
-            this.store.state.updateMany(layers, { added: true });
-            this.map.addLayers(oLayers);
-            })
-           });*/
       })
     })
   }
