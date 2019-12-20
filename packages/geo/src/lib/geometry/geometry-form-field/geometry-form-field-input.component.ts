@@ -94,6 +94,11 @@ export class GeometryFormFieldInputComponent implements OnInit, OnDestroy, Contr
   @Input() measure: boolean = false;
 
   /**
+   * Control options
+   */
+  @Input() controlOptions: {[key: string]: any} = {};
+
+  /**
    * Style for the draw control (applies while the geometry is being drawn)
    */
   @Input()
@@ -245,7 +250,7 @@ export class GeometryFormFieldInputComponent implements OnInit, OnDestroy, Contr
    * Create a draw control and subscribe to it's geometry
    */
   private createDrawControl() {
-    this.drawControl = new DrawControl({
+    const controlOptions = Object.assign({}, this.controlOptions, {
       geometryType: this.geometryType || 'Point',
       layer: this.olOverlayLayer,
       drawStyle: (olFeature: OlFeature, resolution: number) => {
@@ -254,13 +259,14 @@ export class GeometryFormFieldInputComponent implements OnInit, OnDestroy, Contr
         return style;
       }
     });
+    this.drawControl = new DrawControl(controlOptions);
   }
 
   /**
    * Create a modify control and subscribe to it's geometry
    */
   private createModifyControl() {
-    this.modifyControl = new ModifyControl({
+    const controlOptions = Object.assign({}, this.controlOptions, {
       layer: this.olOverlayLayer,
       drawStyle: (olFeature: OlFeature, resolution: number) => {
         const style = this.drawStyle;
@@ -268,6 +274,7 @@ export class GeometryFormFieldInputComponent implements OnInit, OnDestroy, Contr
         return style;
       }
     });
+    this.modifyControl = new ModifyControl(controlOptions);
   }
 
   /**
