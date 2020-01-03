@@ -148,7 +148,7 @@ export abstract class Layer {
     this.map = _map;
 
     this.unobserveResolution();
-    if (map !== undefined) {
+    if (_map !== undefined) {
       this.observeResolution();
     }
   }
