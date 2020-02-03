@@ -31,18 +31,22 @@
 
   <igo-panel title="Search">
     <igo-search-bar
-      (pointerSummaryEnabled)="onPointerSummaryEnabledChange($event)"
+      (pointerSummaryStatus)="onPointerSummaryStatusChange($event)"
       [searchSettings]="true"
-      (change)="onSearchTermChange($event)"
+      (searchTermChange)="onSearchTermChange($event)"
       (search)="onSearch($event)"
-      (clearFeature)="removeFeatureFromMap()">
+      (clearFeature)="removeFeatureFromMap()"
+      (searchSettingsChange)="onSearchSettingsChange()">
     </igo-search-bar>
 
     <igo-search-results
       [store]="searchStore"
+      [term]="term"
       placeholder="false"
+      [settingsChange$]="settingsChange$"
       (resultFocus)="onResultFocus($event)"
-      (resultSelect)="onResultFocus($event)">
+      (resultSelect)="onResultFocus($event)"
+      (moreResults)="onSearch($event)">
         <ng-template #igoSearchItemToolbar let-result="result">
           <igo-search-add-button
             [map]="map"

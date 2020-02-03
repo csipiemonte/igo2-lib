@@ -1,3 +1,4 @@
+import { BehaviorSubject } from 'rxjs';
 import {
   Component,
   ElementRef,
@@ -56,6 +57,9 @@ export class AppSearchComponent implements OnInit, OnDestroy {
 
   public lonlat;
   public mapProjection: string;
+  public term: string;
+
+  public settingsChange$ = new BehaviorSubject<boolean>(undefined);
 
   get searchStore(): EntityStore<SearchResult> {
     return this.searchState.store;
@@ -91,12 +95,14 @@ export class AppSearchComponent implements OnInit, OnDestroy {
       });
   }
 
-  onPointerSummaryEnabledChange(value) {
+  onPointerSummaryStatusChange(value) {
     this.igoSearchPointerSummaryEnabled = value;
   }
 
-  onSearchTermChange(term?: string) {
-    if (term === undefined || term === '') {
+  onSearchTermChange(term = '') {
+    this.term = term;
+    const termWithoutHashtag = term.replace(/(#[^\s]*)/g, '').trim();
+    if (termWithoutHashtag.length < 2) {
       this.searchStore.clear();
       this.selectedFeature = undefined;
     }
@@ -109,6 +115,10 @@ export class AppSearchComponent implements OnInit, OnDestroy {
       .filter((result: SearchResult) => result.source !== event.research.source)
       .concat(results);
     this.searchStore.load(newResults);
+  }
+
+  onSearchSettingsChange() {
+    this.settingsChange$.next(true);
   }
 
   /**

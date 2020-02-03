@@ -126,7 +126,8 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
             {
               title: 'igo.geo.search.icherche.type.oldAddress',
               value: 'anciennes-adresses',
-              enabled: types.indexOf('anciennes-adresses') !== -1
+              enabled: types.indexOf('anciennes-adresses') !== -1,
+              hashtags: ['anciennes-adresses']
             },
             {
               title: 'igo.geo.search.icherche.type.postalCode',
@@ -149,18 +150,27 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
             {
               title: 'igo.geo.search.icherche.type.oldCity',
               value: 'anciennes-municipalites',
-              enabled: types.indexOf('anciennes-municipalites') !== -1
+              enabled: types.indexOf('anciennes-municipalites') !== -1,
+              hashtags: ['anciennes-municipalites']
             },
             {
               title: 'igo.geo.search.icherche.type.mrc',
               value: 'mrc',
-              enabled: types.indexOf('mrc') !== -1
+              enabled: types.indexOf('mrc') !== -1,
+              hashtags: ['mrc']
             },
             {
               title: 'igo.geo.search.icherche.type.regadmin',
               value: 'regadmin',
               enabled: types.indexOf('regadmin') !== -1,
-              hashtags: ['région-administrative']
+              hashtags: ['région-administrative', 'regadmin']
+            },
+            {
+              title: 'igo.geo.search.icherche.type.entreprise',
+              value: 'entreprises',
+              enabled: types.indexOf('entreprises') !== -1,
+              available: false,
+              hashtags: ['entreprise']
             },
             {
               title: 'igo.geo.search.icherche.type.place',
@@ -174,19 +184,11 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
               enabled: types.indexOf('bornes-sumi') !== -1,
               hashtags: ['borne', 'bornes', 'sumi']
             },
-            ,
             {
               title: 'igo.geo.search.icherche.type.km',
               value: 'bornes-km',
               enabled: false,
               hashtags: ['borne', 'bornes', 'repère', 'km']
-            },
-            {
-              title: 'igo.geo.search.icherche.type.entreprise',
-              value: 'entreprises',
-              enabled: types.indexOf('entreprises') !== -1,
-              available: false,
-              hashtags: ['entreprise']
             }
           ]
         },
@@ -288,6 +290,8 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
     if (!params.get('type').length) {
       return of([]);
     }
+    this.options.params.page = params.get('page') || '1';
+
     return this.http.get(`${this.searchUrl}/geocode`, { params }).pipe(
       map((response: IChercheResponse) => this.extractResults(response)),
       catchError(err => {
@@ -329,7 +333,6 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
   ): HttpParams {
     const queryParams: any = Object.assign(
       {
-        q: this.computeTerm(term),
         geometry: true,
         bbox: true,
         icon: true,
@@ -337,7 +340,11 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
           'adresses,codes-postaux,municipalites,mrc,regadmin,lieux,entreprises,bornes-sumi'
       },
       this.params,
-      this.computeOptionsParam(term, options || {}).params
+      this.computeOptionsParam(term, options || {}).params,
+      {
+        q: this.computeTerm(term),
+        page: options.page
+      }
     );
 
     if (queryParams.loc === 'true') {
@@ -351,16 +358,16 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
       queryParams.type = 'lieux';
     }
 
-    return new HttpParams({ fromObject: queryParams });
+    return new HttpParams({ fromObject: ObjectUtils.removeUndefined(queryParams) });
   }
 
   private extractResults(response: IChercheResponse): SearchResult<Feature>[] {
     return response.features.map((data: IChercheData) => {
-      return this.formatter.formatResult(this.dataToResult(data));
+      return this.formatter.formatResult(this.dataToResult(data, response));
     });
   }
 
-  private dataToResult(data: IChercheData): SearchResult<Feature> {
+  private dataToResult(data: IChercheData, response?: IChercheResponse): SearchResult<Feature> {
     const properties = this.computeProperties(data);
     const id = [this.getId(), properties.type, properties.code].join('.');
 
@@ -390,7 +397,8 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
         id,
         title: data.properties.nom,
         titleHtml: titleHtml + subtitleHtml + subtitleHtml2,
-        icon: data.icon || 'map-marker'
+        icon: data.icon || 'map-marker',
+        nextPage: response.features.length % +this.options.params.limit === 0 && +this.options.params.page < 10
       }
     };
   }
@@ -692,7 +700,7 @@ export class IChercheReverseSearchSource extends SearchSource
           t => t.value === data.properties.type
         );
         if (type) {
-          subtitle = type.title;
+          subtitle = this.languageService.translate.instant(type.title);
         }
     }
     return subtitle;
