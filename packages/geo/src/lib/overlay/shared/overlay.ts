@@ -5,10 +5,10 @@ import {
   FeatureMotion,
   featureToOl,
   moveToOlFeatures
-} from '../../feature';
+} from '../../feature/shared';
 import { FeatureDataSource } from '../../datasource';
-import { VectorLayer } from '../../layer';
-import { IgoMap } from '../../map';
+import { VectorLayer } from '../../layer/shared/layers/vector-layer';
+import { IgoMap } from '../../map/shared/map';
 
 import { createOverlayLayer } from './overlay.utils';
 
@@ -60,12 +60,22 @@ export class Overlay {
    * Set the overlay features and, optionally, move to them
    * @param features Features
    * @param motion Optional: Apply this motion to the map view
+   * @param sourceId Optional: Remove features of certain sourceId (ex: 'Map' for query features)
    */
   setFeatures(
     features: Feature[],
-    motion: FeatureMotion = FeatureMotion.Default
+    motion: FeatureMotion = FeatureMotion.Default,
+    sourceId?: string
   ) {
-    this.clear();
+    if (sourceId) {
+      for (const olFeature of this.dataSource.ol.getFeatures()) {
+        if (olFeature.get('_sourceId') === sourceId) {
+          this.removeOlFeature(olFeature);
+        }
+      }
+    } else {
+      this.clear();
+    }
     this.addFeatures(features, motion);
   }
 
@@ -123,6 +133,36 @@ export class Overlay {
   ) {
     this.dataSource.ol.addFeatures(olFeatures);
     moveToOlFeatures(this.map, olFeatures, motion);
+  }
+
+  /**
+   * Remove a feature from the overlay
+   * @param feature Feature
+   */
+  removeFeature(feature: Feature) {
+    this.removeFeatures([feature]);
+  }
+
+  /**
+   * Remove features from the overlay
+   * @param features Features
+   */
+  removeFeatures(features: Feature[]) {
+    features.forEach((feature: Feature) => {
+      if (feature.meta) {
+        if (this.dataSource.ol.getFeatureById(feature.meta.id)) {
+          this.removeOlFeature(this.dataSource.ol.getFeatureById(feature.meta.id));
+        }
+      }
+    });
+  }
+
+  /**
+   * Remove an OpenLayers feature from the overlay
+   * @param olFeature OpenLayers Feature
+   */
+  removeOlFeature(olFeature: OlFeature) {
+    this.dataSource.ol.removeFeature(olFeature);
   }
 
   /**

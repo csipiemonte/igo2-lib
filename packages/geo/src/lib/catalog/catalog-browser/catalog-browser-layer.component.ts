@@ -4,16 +4,18 @@ import {
   ChangeDetectionStrategy,
   Output,
   EventEmitter,
-  OnInit
+  OnInit,
+  OnDestroy
 } from '@angular/core';
 
 import { getEntityTitle, getEntityIcon } from '@igo2/common';
 
 import { CatalogItemLayer } from '../shared';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subscription } from 'rxjs';
 import { LayerService } from '../../layer/shared/layer.service';
 import { first } from 'rxjs/operators';
-import { Layer } from '../../layer/shared/layers';
+import { Layer, TooltipType } from '../../layer/shared/layers';
+import { MetadataLayerOptions } from '../../metadata/shared/metadata.interface';
 
 /**
  * Catalog browser layer item
@@ -24,14 +26,16 @@ import { Layer } from '../../layer/shared/layers';
   styleUrls: ['./catalog-browser-layer.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CatalogBrowserLayerComponent implements OnInit {
+export class CatalogBrowserLayerComponent implements OnInit, OnDestroy {
   public inRange$: BehaviorSubject<boolean> = new BehaviorSubject(true);
   public isPreview$: BehaviorSubject<boolean> = new BehaviorSubject(false);
-
+  private isPreview$$: Subscription;
   private lastTimeoutRequest;
 
   public layerLegendShown$: BehaviorSubject<boolean> = new BehaviorSubject(false);
   public igoLayer$ = new BehaviorSubject<Layer>(undefined);
+
+  private mouseInsideAdd: boolean = false;
 
   @Input() resolution: number;
 
@@ -75,7 +79,38 @@ export class CatalogBrowserLayerComponent implements OnInit {
 
   ngOnInit(): void {
     this.isInResolutionsRange();
-    this.isPreview$.subscribe(value => this.addedLayerIsPreview.emit(value));
+    this.isPreview$$ = this.isPreview$.subscribe(value => this.addedLayerIsPreview.emit(value));
+  }
+
+  ngOnDestroy() {
+    this.isPreview$$.unsubscribe();
+  }
+
+  computeTitleTooltip(): string {
+      const layerOptions = this.layer.options;
+      if (!layerOptions.tooltip) {
+        return getEntityTitle(this.layer);
+      }
+      const layerTooltip = layerOptions.tooltip;
+      const layerMetadata = (layerOptions as MetadataLayerOptions).metadata;
+      switch (layerOptions.tooltip.type) {
+        case TooltipType.TITLE:
+          return this.layer.title;
+        case TooltipType.ABSTRACT:
+          if (layerMetadata && layerMetadata.abstract) {
+            return layerMetadata.abstract;
+          } else {
+            return this.layer.title;
+          }
+        case TooltipType.CUSTOM:
+          if (layerTooltip && layerTooltip.text) {
+            return layerTooltip.text;
+          } else {
+            return this.layer.title;
+          }
+        default:
+          return this.layer.title;
+      }
   }
 
   /**
@@ -100,7 +135,9 @@ export class CatalogBrowserLayerComponent implements OnInit {
     if (typeof this.lastTimeoutRequest !== 'undefined') {
       clearTimeout(this.lastTimeoutRequest);
     }
-
+    if (event.type === 'mouseenter' && this.mouseInsideAdd ) {
+      return;
+    }
     switch (event.type) {
       case 'click':
         if (!this.isPreview$.value) {
@@ -119,12 +156,14 @@ export class CatalogBrowserLayerComponent implements OnInit {
             this.isPreview$.next(true);
           }, 500);
         }
+        this.mouseInsideAdd = true;
         break;
       case 'mouseleave':
         if (this.isPreview$.value) {
           this.remove();
           this.isPreview$.next(false);
         }
+        this.mouseInsideAdd = false;
         break;
       default:
         break;
@@ -151,9 +190,13 @@ export class CatalogBrowserLayerComponent implements OnInit {
     }
   }
 
+  haveGroup(): boolean {
+    return !(!this.layer.address || this.layer.address.split('.').length === 1);
+  }
+
   isInResolutionsRange(): boolean {
-    const minResolution = this.layer.options.minResolution;
-    const maxResolution = this.layer.options.maxResolution;
+    const minResolution = this.layer.options.minResolution || 0;
+    const maxResolution = this.layer.options.maxResolution || Infinity;
     this.inRange$.next(
       this.resolution >= minResolution && this.resolution <= maxResolution
     );

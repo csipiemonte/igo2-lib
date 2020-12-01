@@ -9,6 +9,9 @@
       "table": {
         "filter": "Filter"
       },
+      "entity-table": {
+        "targetHtmlUrl": "Open the external link"
+      },
       "form": {
         "errors": {
           "required": "This field is required"
@@ -16,7 +19,24 @@
       },
       "actionbar": {
         "scrollUp": "Scroll up",
-        "scrollDown": "Scroll down"
+        "scrollDown": "Scroll down",
+        "icon": "Action list"
+      },
+      "interactiveTour": {
+        "tooltipTourToolButton": "Interactive tour of the application",
+        "disaledTooltipTourToolButton": "To have access to this tool's tour, add contexts or layers",
+        "buttonTitle": "Discover",
+        "exitButton": "Exit",
+        "backButton": "Back",
+        "nextButton": "Next"
+      },
+      "paginator": {
+        "firstPageLabel": "First page",
+        "itemsPerPageLabel": "Items per page:",
+        "lastPageLabel": "Last page",
+        "nextPageLabel": "Next page",
+        "previousPageLabel": "Previous page",
+        "of": "of"
       }
     }
   }

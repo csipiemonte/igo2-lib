@@ -1,7 +1,8 @@
 <div *ngIf="!store || store.empty" style="margin: 10px;">
   <section class="mat-typography">
-    <h4>{{ 'igo.integration.searchResultsTool.noResults' | translate }}</h4>
-    <p>{{ 'igo.integration.searchResultsTool.doSearch' | translate }}</p>
+    <h4><strong>{{ 'igo.integration.searchResultsTool.noResults' | translate }}</strong></h4>
+    <p><strong>{{ 'igo.integration.searchResultsTool.doSearch' | translate }}</strong></p>
+    <div [innerHTML]="'igo.integration.searchResultsTool.examples' | translate | sanitizeHtml"></div>
 </section>
 </div>
 
@@ -24,7 +25,10 @@
       [settingsChange$]="settingsChange$"
       placeholder="false"
       (resultFocus)="onResultFocus($event)"
-      (resultSelect)="onResultFocus($event)"
+      (resultSelect)="onResultSelect($event)"
+      (resultUnfocus)="onResultUnfocus($event)"
+      (resultMouseenter)="onResultFocus($event)"
+      (resultMouseleave)="onResultUnfocus($event)"
       (moreResults)="onSearch($event)">
       <ng-template #igoSearchItemToolbar let-result="result">
         <igo-search-add-button
@@ -47,16 +51,27 @@
       </button>
 
       <button
+        *ngIf="feature.geometry"
         mat-icon-button
         panelRightButton
         class="igo-icon-button"
-        (click)="zoomToFeatureExtent()"
-        *ngIf="feature.geometry">
-        <mat-icon svgIcon="magnify-plus-outline"></mat-icon>
+        [matTooltip]="((isSelectedResultOutOfView$ | async) ? 'igo.integration.searchResultsTool.zoomOnFeatureTooltipOutOfView' : 'igo.integration.searchResultsTool.zoomOnFeatureTooltip') | translate"
+        matTooltipShowDelay="500"
+        (click)="zoomToFeatureExtent()">
+        <mat-icon
+        [matBadge]="(isSelectedResultOutOfView$ | async) ? '!' : ''"
+        matBadgeColor="accent"
+        matBadgeSize="small"
+        [matBadgeHidden]="!(isSelectedResultOutOfView$ | async)"     
+        svgIcon="magnify-plus-outline"></mat-icon>
       </button>
 
       <igo-feature-details
-        [feature]="feature$ | async">
+        igoFeatureDetailsDirective
+        [feature]="feature$ | async"
+        [map]="map"
+        [toolbox]="toolState.toolbox"
+        (routingEvent)="getRoute($event)">
       </igo-feature-details>
     </igo-panel>
   </div>

@@ -3,12 +3,13 @@ import {
   AfterViewInit,
   OnInit,
   OnDestroy,
-  QueryList,
   Input,
   ContentChildren,
   HostListener,
   ElementRef
 } from '@angular/core';
+import type { QueryList } from '@angular/core';
+
 import { Subscription } from 'rxjs';
 
 import { ListItemDirective } from './list-item.directive';
@@ -62,15 +63,16 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
   listItems: QueryList<ListItemDirective>;
 
   @HostListener('document:keydown', ['$event'])
+  @HostListener('document:enter', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
     // It would be nice to be able to unsubscribe to the event
     // completely but until ES7 this won't be possible because
     // document events are not observables
     if (this.navigationEnabled) {
-      if (event.keyCode === 38 || event.keyCode === 40) {
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
-        this.navigate(event.keyCode);
-      } else if (event.keyCode === 13) {
+        this.navigate(event.key);
+      } else if (event.key === 'Enter') {
         this.select(this.focusedItem);
       }
     }
@@ -121,6 +123,7 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
   focusNext() {
     const items = this.listItems.toArray();
     let item;
+    const igoList = this.el.nativeElement;
     let disabled = true;
     let index = this.getFocusedIndex();
     if (index === undefined) {
@@ -136,11 +139,24 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
     if (item !== undefined) {
       this.focus(item);
     }
+
+    if (!items[index + 1]) {
+      igoList.scrollTop = igoList.scrollHeight - igoList.clientHeight;
+      return;
+    }
+
+    if (item !== undefined && !this.isScrolledIntoView(item.el.nativeElement)) {
+      igoList.scrollTop =
+        item.el.nativeElement.offsetTop +
+        item.el.nativeElement.children[0].offsetHeight -
+        igoList.clientHeight;
+    }
   }
 
   focusPrevious() {
     const items = this.listItems.toArray();
-    let item;
+    let item: ListItemDirective;
+    const igoList = this.el.nativeElement;
     let disabled = true;
     let index = this.getFocusedIndex();
 
@@ -152,6 +168,16 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
 
     if (item !== undefined) {
       this.focus(item);
+    }
+
+    if (!items[index - 1]) {
+      igoList.scrollTop = 0;
+      return;
+    }
+
+    if (item !== undefined && !this.isScrolledIntoView(item.el.nativeElement)) {
+      const padding = 3;
+      igoList.scrollTop = item.el.nativeElement.offsetTop - padding;
     }
   }
 
@@ -189,6 +215,16 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
 
   scrollToItem(item: ListItemDirective) {
     this.el.nativeElement.scrollTop = item.getOffsetTop();
+  }
+
+  isScrolledIntoView(elem) {
+    const docViewTop =
+      this.el.nativeElement.scrollTop + this.el.nativeElement.offsetTop;
+    const docViewBottom = docViewTop + this.el.nativeElement.clientHeight;
+
+    const elemTop = elem.offsetTop;
+    const elemBottom = elemTop + elem.children[0].offsetHeight;
+    return elemBottom <= docViewBottom && elemTop >= docViewTop;
   }
 
   private init() {
@@ -237,7 +273,7 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
 
   private handleItemBeforeFocus(item: ListItemDirective) {
     if (item !== this.focusedItem) {
-      this.unselect();
+      this.unfocus();
     }
   }
 
@@ -269,12 +305,12 @@ export class ListComponent implements AfterViewInit, OnInit, OnDestroy {
       .findIndex(item => item === this.focusedItem);
   }
 
-  private navigate(key: number) {
+  private navigate(key: string) {
     switch (key) {
-      case 38:
+      case 'ArrowUp':
         this.focusPrevious();
         break;
-      case 40:
+      case 'ArrowDown':
         this.focusNext();
         break;
       default:

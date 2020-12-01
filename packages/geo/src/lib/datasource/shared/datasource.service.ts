@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Injectable, Optional } from '@angular/core';
+import { forkJoin, of, Observable, BehaviorSubject } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 
 import { CapabilitiesService } from './capabilities.service';
+import { OptionsService } from './options/options.service';
 import { WFSService } from './datasources/wfs.service';
 import {
   DataSource,
@@ -12,6 +13,8 @@ import {
   FeatureDataSourceOptions,
   XYZDataSource,
   XYZDataSourceOptions,
+  TileDebugDataSource,
+  TileDebugDataSourceOptions,
   WFSDataSource,
   WFSDataSourceOptions,
   WMTSDataSource,
@@ -32,6 +35,9 @@ import {
   ClusterDataSourceOptions
 } from './datasources';
 import { ObjectUtils } from '@igo2/utils';
+import { LanguageService, MessageService } from '@igo2/core';
+import { ProjectionService } from '../../map/shared/projection.service';
+import { AuthInterceptor } from '@igo2/auth';
 
 @Injectable({
   providedIn: 'root'
@@ -41,10 +47,15 @@ export class DataSourceService {
 
   constructor(
     private capabilitiesService: CapabilitiesService,
-    private wfsDataSourceService: WFSService
+    @Optional() private optionsService: OptionsService,
+    private wfsDataSourceService: WFSService,
+    private languageService: LanguageService,
+    private messageService: MessageService,
+    private projectionService: ProjectionService,
+    private authInterceptor?: AuthInterceptor
   ) {}
 
-  createAsyncDataSource(context: AnyDataSourceOptions): Observable<DataSource> {
+  createAsyncDataSource(context: AnyDataSourceOptions, detailedContextUri?: string): Observable<DataSource> {
     if (!context.type) {
       console.error(context);
       throw new Error('Datasource needs a type');
@@ -65,7 +76,7 @@ export class DataSourceService {
       case 'wms':
         const wmsContext = context as WMSDataSourceOptions;
         ObjectUtils.removeDuplicateCaseInsensitive(wmsContext.params);
-        dataSource = this.createWMSDataSource(wmsContext);
+        dataSource = this.createWMSDataSource(wmsContext, detailedContextUri);
         break;
       case 'wmts':
         dataSource = this.createWMTSDataSource(
@@ -75,6 +86,9 @@ export class DataSourceService {
       case 'xyz':
         dataSource = this.createXYZDataSource(context as XYZDataSourceOptions);
         break;
+      case 'tiledebug':
+          dataSource = this.createTileDebugDataSource(context as TileDebugDataSource);
+          break;
       case 'carto':
         dataSource = this.createCartoDataSource(
           context as CartoDataSourceOptions
@@ -135,25 +149,60 @@ export class DataSourceService {
     context: WFSDataSourceOptions
   ): Observable<WFSDataSource> {
     return new Observable(d =>
-      d.next(new WFSDataSource(context, this.wfsDataSourceService))
+      d.next(new WFSDataSource(context, this.wfsDataSourceService, this.authInterceptor))
     );
   }
 
-  private createWMSDataSource(
-    context: WMSDataSourceOptions
-  ): Observable<WMSDataSource> {
+  private createWMSDataSource(context: WMSDataSourceOptions, detailedContextUri?: string): Observable<any> {
+    const observables = [];
     if (context.optionsFromCapabilities) {
-      return this.capabilitiesService.getWMSOptions(context).pipe(
-        map((options: WMSDataSourceOptions) => {
-          return options
-            ? new WMSDataSource(options, this.wfsDataSourceService)
-            : undefined;
-        })
+      observables.push(
+        this.capabilitiesService.getWMSOptions(context).pipe(
+          catchError(e => {
+            const title = this.languageService.translate.instant(
+              'igo.geo.dataSource.unavailableTitle'
+            );
+            const message = this.languageService.translate.instant(
+              'igo.geo.dataSource.unavailable',
+              { value: context.params.LAYERS }
+            );
+
+            this.messageService.error(message, title);
+            throw e;
+          })
+        )
       );
     }
 
-    return new Observable(d =>
-      d.next(new WMSDataSource(context, this.wfsDataSourceService))
+    if (this.optionsService && context.optionsFromApi === true) {
+      observables.push(
+        this.optionsService.getWMSOptions(context, detailedContextUri).pipe(
+          catchError(e => {
+            e.error.toDisplay = true;
+            e.error.title = this.languageService.translate.instant(
+              'igo.geo.dataSource.unavailableTitle'
+            );
+            e.error.message = this.languageService.translate.instant(
+              'igo.geo.dataSource.optionsApiUnavailable'
+            );
+            return of({});
+          })
+        )
+      );
+    }
+
+    observables.push(of(context));
+
+    return forkJoin(observables).pipe(
+      map((options: WMSDataSourceOptions[]) => {
+        const optionsMerged = options.reduce((a, b) =>
+          ObjectUtils.mergeDeep(a, b)
+        );
+        return new WMSDataSource(optionsMerged, this.wfsDataSourceService);
+      }),
+      catchError(() => {
+        return of(undefined);
+      })
     );
   }
 
@@ -164,6 +213,18 @@ export class DataSourceService {
       return this.capabilitiesService.getWMTSOptions(context).pipe(
         map((options: WMTSDataSourceOptions) => {
           return options ? new WMTSDataSource(options) : undefined;
+        }),
+        catchError(() => {
+          const title = this.languageService.translate.instant(
+            'igo.geo.dataSource.unavailableTitle'
+          );
+          const message = this.languageService.translate.instant(
+            'igo.geo.dataSource.unavailable',
+            { value: context.layer }
+          );
+
+          this.messageService.error(message, title);
+          return of(undefined);
         })
       );
     }
@@ -175,6 +236,12 @@ export class DataSourceService {
     context: XYZDataSourceOptions
   ): Observable<XYZDataSource> {
     return new Observable(d => d.next(new XYZDataSource(context)));
+  }
+
+  private createTileDebugDataSource(
+    context: TileDebugDataSourceOptions
+  ): Observable<TileDebugDataSource> {
+    return new Observable(d => d.next(new TileDebugDataSource(context)));
   }
 
   private createCartoDataSource(

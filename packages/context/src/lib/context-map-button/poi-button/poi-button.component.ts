@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
+import { take } from 'rxjs/operators';
 
 import * as olproj from 'ol/proj';
 import * as oleasing from 'ol/easing';
@@ -9,7 +10,7 @@ import olPoint from 'ol/geom/Point';
 import { MessageService, LanguageService } from '@igo2/core';
 import { ConfirmDialogService } from '@igo2/common';
 import { AuthService } from '@igo2/auth';
-import { IgoMap } from '@igo2/geo';
+import type { IgoMap } from '@igo2/geo';
 
 import { PoiService } from './shared/poi.service';
 import { Poi } from './shared/poi.interface';
@@ -95,7 +96,7 @@ export class PoiButtonComponent implements OnInit, OnDestroy {
   }
 
   private getPois() {
-    this.poiService.get().subscribe(
+    this.poiService.get().pipe(take(1)).subscribe(
       rep => {
         this.pois = rep;
       },

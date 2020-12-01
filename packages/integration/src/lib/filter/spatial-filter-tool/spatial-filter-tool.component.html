@@ -3,9 +3,13 @@
     [store]="spatialListStore"
     [selectedQueryType]="queryType"
     [zone]="zone"
+    [layers]="activeLayers"
     (eventType)="getOutputType($event)"
     (eventQueryType)="getOutputQueryType($event)"
-    (zoneChange)="onZoneChange($event)">
+    (zoneChange)="onZoneChange($event)"
+    (zoneWithBufferChange)="onZoneChange($event, true)"
+    (bufferChange)="buffer = $event"
+    (measureUnitChange)="measureUnit = $event">
   </igo-spatial-filter-type>
 
   <igo-spatial-filter-item
@@ -15,15 +19,22 @@
     [zone]="zone"
     [loading]="loading"
     [store]="store"
-    [layers]="layers"
-    (radiusEvent)="radius = $event"
+    [layers]="activeLayers"
+    [thematicLength]="thematicLength"
+    (radiusEvent)="buffer = $event"
+    (bufferEvent)="buffer = $event"
+    (measureUnitChange)="measureUnit = $event"
     (freehandControl)="freehandDrawIsActive = $event"
     (drawZoneEvent)="zone = $event"
+    (zoneWithBufferChange)="onZoneChange($event, true)"
     (itemTypeChange)="itemType = $event"
     (thematicChange)="thematics = $event"
     (toggleSearch)="getOutputToggleSearch()"
-    (clearButtonEvent)="layers = $event"
-    (clearSearchEvent)="getOutputClearSearch()">
+    (clearButtonEvent)="clearMap()"
+    (clearSearchEvent)="getOutputClearSearch()"
+    (export)="activateExportTool()"
+    (openWorkspace)="activateWorkspace()"
+    >
   </igo-spatial-filter-item>
 </igo-panel>
 

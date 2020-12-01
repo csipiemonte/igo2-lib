@@ -8,7 +8,8 @@ import { Observable, Observer } from 'rxjs';
 import * as olformat from 'ol/format';
 import OlFeature from 'ol/Feature';
 
-import { ExportFormat } from './export.type';
+import { ExportFormat, EncodingFormat } from './export.type';
+
 import {
   ExportInvalidFileError,
   ExportNothingToExportError
@@ -23,25 +24,54 @@ export class ExportService {
     GPX: 'gpx',
     KML: 'kml',
     Shapefile: 'ESRI Shapefile',
-    CSV: 'CSV'
+    CSVcomma: 'CSVcomma',
+    CSVsemicolon: 'CSVsemicolon'
   };
 
   static noOgreFallbacks = ['GML', 'GPX', 'KML'];
 
   private ogreUrl: string;
+  private aggregateInComment: boolean = true;
 
   constructor(private config: ConfigService) {
     this.ogreUrl = this.config.getConfig('importExport.url');
+    const gpxAggregateInComment = this.config.getConfig(
+      'importExport.gpxAggregateInComment'
+    );
+    if (gpxAggregateInComment !== undefined) {
+      this.aggregateInComment = gpxAggregateInComment;
+    }
   }
 
   export(
     olFeatures: OlFeature[],
     format: ExportFormat,
     title: string,
+    encoding: EncodingFormat,
     projectionIn = 'EPSG:4326',
     projectionOut = 'EPSG:4326'
   ): Observable<void> {
-    const exportOlFeatures = olFeatures.map((olFeature: OlFeature) => {
+    const exportOlFeatures = this.generateFeature(olFeatures, format);
+
+    return this.exportAsync(
+      exportOlFeatures,
+      format,
+      title,
+      encoding,
+      projectionIn,
+      projectionOut
+    );
+  }
+
+  private generateFeature(
+    olFeatures: OlFeature[],
+    format: ExportFormat
+  ): OlFeature[] {
+    if (format === ExportFormat.GPX && this.aggregateInComment) {
+      return this.generateAggratedFeature(olFeatures);
+    }
+
+    return olFeatures.map((olFeature: OlFeature) => {
       const keys = olFeature
         .getKeys()
         .filter((key: string) => !key.startsWith('_'));
@@ -54,20 +84,37 @@ export class ExportService {
       );
       return new OlFeature(properties);
     });
+  }
 
-    return this.exportAsync(
-      exportOlFeatures,
-      format,
-      title,
-      projectionIn,
-      projectionOut
-    );
+  private generateAggratedFeature(olFeatures: OlFeature[]): OlFeature[] {
+    return olFeatures.map((olFeature: OlFeature) => {
+      const keys = olFeature
+        .getKeys()
+        .filter((key: string) => !key.startsWith('_'));
+      let comment: string = '';
+      const properties: any[] = keys.reduce(
+        (acc: object, key: string) => {
+          if (key !== undefined && key !== 'geometry') {
+            comment += key + ':' + olFeature.get(key) + '   \r\n';
+          }
+          acc[key] = olFeature.get(key);
+          return acc;
+        },
+        { geometry: olFeature.getGeometry() }
+      );
+      const newFeature = new OlFeature(properties);
+      newFeature.set('name', olFeature.getId());
+      newFeature.set('cmt', comment);
+
+      return newFeature;
+    });
   }
 
   private exportAsync(
     olFeatures: OlFeature[],
     format: ExportFormat,
     title: string,
+    encoding: EncodingFormat,
     projectionIn: string,
     projectionOut: string
   ): Observable<void> {
@@ -100,6 +147,7 @@ export class ExportService {
           observer,
           format,
           title,
+          encoding,
           projectionIn,
           projectionOut
         );
@@ -118,7 +166,7 @@ export class ExportService {
     return new Observable(doExport);
   }
 
-  private exportToFile(
+  protected exportToFile(
     olFeatures: OlFeature[],
     observer: Observer<void>,
     format: ExportFormat,
@@ -145,23 +193,47 @@ export class ExportService {
     observer: Observer<void>,
     format: string,
     title: string,
+    encodingType: EncodingFormat,
     projectionIn: string,
     projectionOut: string
   ) {
-    const featuresText = new olformat.GeoJSON().writeFeatures(olFeatures, {
-      dataProjection: projectionOut,
-      featureProjection: projectionIn,
-      featureType: 'feature',
-      featureNS: 'http://example.com/feature'
-    });
+    const featuresText: string = new olformat.GeoJSON().writeFeatures(
+      olFeatures,
+      {
+        dataProjection: projectionOut,
+        featureProjection: projectionIn,
+        featureType: 'feature',
+        featureNS: 'http://example.com/feature'
+      }
+    );
 
     const url = `${this.ogreUrl}/convertJson`;
     const form = document.createElement('form');
+    form.style.display = 'none';
+    document.body.appendChild(form);
     form.setAttribute('method', 'post');
     form.setAttribute('target', '_blank');
     form.setAttribute('action', url);
-    form.acceptCharset = 'UTF-8';
-    form.enctype = 'application/x-www-form-urlencoded; charset=utf-8;';
+
+    if (encodingType === EncodingFormat.UTF8) {
+      form.acceptCharset = 'UTF-8';
+      form.enctype = 'application/x-www-form-urlencoded; charset=utf-8;';
+    } else if (encodingType === EncodingFormat.LATIN1) {
+      const enctype = 'ISO-8859-1';
+      const encoding = document.createElement('input');
+      encoding.setAttribute('type', 'hidden');
+      encoding.setAttribute('name', 'encoding');
+      encoding.setAttribute('value', enctype);
+      form.appendChild(encoding);
+    }
+
+    if (format === 'CSVsemicolon') {
+      const options = document.createElement('input');
+      options.setAttribute('type', 'hidden');
+      options.setAttribute('name', 'lco');
+      options.setAttribute('value', 'SEPARATOR=SEMICOLON');
+      form.appendChild(options);
+    }
 
     const geojsonField = document.createElement('input');
     geojsonField.setAttribute('type', 'hidden');
@@ -170,23 +242,30 @@ export class ExportService {
     form.appendChild(geojsonField);
 
     const outputNameField = document.createElement('input');
-    const outputName =
+    let outputName =
       format === 'Shapefile'
         ? `${title}.zip`
         : `${title}.${format.toLowerCase()}`;
+    if (format === 'CSVcomma' || format === 'CSVsemicolon') {
+      outputName = `${title}.csv`;
+    }
+    outputName = outputName.replace(' ', '_');
+    outputName = outputName.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     outputNameField.setAttribute('type', 'hidden');
     outputNameField.setAttribute('name', 'outputName');
     outputNameField.setAttribute('value', outputName);
     form.appendChild(outputNameField);
 
-    const ogreFormat = ExportService.ogreFormats[format];
+    let ogreFormat = ExportService.ogreFormats[format];
+    if (format === 'CSVcomma' || format === 'CSVsemicolon') {
+      ogreFormat = 'CSV';
+    }
     const outputFormatField = document.createElement('input');
     outputFormatField.setAttribute('type', 'hidden');
     outputFormatField.setAttribute('name', 'format');
     outputFormatField.setAttribute('value', ogreFormat);
     form.appendChild(outputFormatField);
 
-    document.body.appendChild(form);
     form.submit();
     document.body.removeChild(form);
 
@@ -200,7 +279,7 @@ export class ExportService {
     if (format === 'GPX') {
       const pointOrLine = olFeatures.find(olFeature => {
         return (
-          ['Point', 'LineString'].indexOf(olFeature.getGeometry().getType()) >=
+          ['Point', 'LineString', 'MultiLineString'].indexOf(olFeature.getGeometry().getType()) >=
           0
         );
       });

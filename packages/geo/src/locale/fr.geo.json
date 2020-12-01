@@ -8,13 +8,20 @@
         "layer.removeFromMapOutRange": "Retirer de la carte. La donnée est non visible à l'échelle active. Veuillez zoomer +/- si vous voulez l'apercevoir à la carte.",
         "group.addToMap": "Ajouter toutes les couches de ce groupe à la carte",
         "group.removeFromMap": "Retirer toutes les couches de ce groupe de la carte",
-        "baseLayers": "Fonds de carte"
+        "baseLayers": "Fonds de carte",
+        "unavailableTitle": "Catalogue indisponible",
+        "unavailable": "Le catalogue '{{value}}' est indisponible pour le moment ou vous n'avez pas les permissions requises."
       },
       "clickOnMap": {
         "clickedFeature": "Entités cliquées"
       },
       "baselayersSwitcher": {
         "title": "Fonds de carte"
+      },
+      "dataSource": {
+        "unavailableTitle": "Couche indisponible",
+        "optionsApiUnavailable": "L'information sur les couches n'a pas pu être récupérée. Certaines couches pourraient ne pas présenter la bonne information.",
+        "unavailable": "La couche '{{value}}' est indisponible pour le moment ou vous n'avez pas les permissions requises."
       },
       "dropGeoFile": {
         "invalid": {
@@ -34,7 +41,7 @@
           "title": "Fichier illisible"
         },
         "tooLarge": {
-          "text": "Le fichier '{{value}}' est trop volumineux (Maximun: 30 Mo)",
+          "text": "Le fichier '{{value}}' est trop volumineux (Maximum: {{size}} Mo)",
           "title": "Fichier trop volumineux"
         },
         "invalidSRS": {
@@ -47,24 +54,71 @@
           "text": "Impossible d’exporter, donnée non valide ou aucune donnée sélectionnée.",
           "title": "Donnée non valide ou non présente"
         },
+        "noFormat": {
+          "text": "Aucun format d'exportation valide pour toutes les couches sélectionnées. Veuillez exporter les couches une à la fois.",
+          "title": "Aucun format disponible"
+        },
         "failed": {
           "text": "Impossible d’exporter, problème de donnée rencontré.",
           "title": "Problème d’exportation"
+        },
+        "popupBlocked": {
+          "text": "</br>Veuillez autoriser l'ouverture des fenêtres (popup) dans votre fureteur. </br>Pour Chrome and Edge, à droite dans la barre d'adresse).</br>{{extraMessage}}",
+          "selectAgain": "Faites le correctif et sélectionner à nouveau un format.",
+          "retry": "Veuillez recommencer l'exportation.",
+          "title": "Ouverture de fenêtre bloquée par votre fureteur"
+        },
+        "success": {
+          "text": "Données exportées avec succès.",
+          "title": "Exportation réussie"
+        },
+        "format": {
+          "GeoJSON": "GeoJSON",
+          "GML": "GML",
+          "GPX": "GPX",
+          "KML": "KML",
+          "Shapefile": "Shapefile",
+          "CSVcomma": "CSV (séparateur virgule)",
+          "CSVsemicolon": "CSV (séparateur point-virgule)",
+          "URL": "Lien externe"
+        },
+        "encoding": {
+          "LATIN1": "LATIN-1",
+          "UTF8": "UTF-8"
         }
       },
       "importExportForm": {
         "exportButton": "Exporter",
+        "exportButtonLink": "Ouvrir le lien",
+        "exportButtonLinks": "Ouvrir les liens",
         "exportFormatPlaceholder": "Format",
-        "exportLayerPlaceholder": "Données géospatiales",
+        "exportLayerPlaceholder": "Couche(s)",
+        "exportFileNamePlaceholder": "Nom du fichier",
+        "encodingPlaceholder": "Encodage",
         "exportTabTitle": "Exporter",
+        "exportFeatureInExtent": "Seulement les entités contenues dans la carte",
+        "exportNoLayersExportable": "Aucune couche exportable dans la carte courante",
+        "exportSelectedFeature": "Seulement les entités sélectionnées",
         "importButton": "Importer",
-        "importProjPlaceholder": "Système de coordonnées",
+        "importProjPlaceholder": "Système de coordonnées du fichier à importer",
         "importTabTitle": "Importer",
         "importClarifications": "Précisions",
-        "importSizeMax": "La taille limite du fichier est de 30 Mo.",
-        "importShpZip": "Les shapefiles doivent être compressés (zippés)"
+        "importSizeMax": "La taille limite du fichier est de {{size}} Mo",
+        "importFormatAuthorized": "Formats autorisés: geojson, kml, gpx, gml, shapefile",
+        "importShpZip": "Les shapefiles doivent être compressés (zippés)",
+        "other": "autre",
+        "others": "autres",
+        "projections": {
+          "mtm": "MTM {{zone}} ({{code}})",
+          "utm": "UTM {{zone}} ({{code}})",
+          "webMercator": "Web Mercator ({{code}})",
+          "nad83": "Lat-Long NAD83 ({{code}})",
+          "wgs84": "Lat-Long WGS84 ({{code}})",
+          "choose": "Vous devez choisir une projection avant d'importer le fichier."
+        }
       },
       "operators": {
+        "caseSensitive": "Sensible à la case",
         "And": "Et",
         "Or": "Ou",
         "PropertyIsEqualTo": "=",
@@ -75,11 +129,28 @@
         "PropertyIsLessThan": "<",
         "PropertyIsLessThanOrEqualTo": "<=",
         "PropertyIsBetween": "entre",
-        "During": "durant",
+        "During": "durant (temporel)",
         "PropertyIsNull": "est nul",
-        "Intersects": "intersecte",
-        "Within": "contenu dans",
-        "Contains": "contient"
+        "Intersects": "intersecte (géométrique)",
+        "Within": "contenu dans (géométrique)",
+        "Contains": "contient (géométrique)",
+        "tooltip": {
+          "And": "Opérateur logique entre les filtres où les deux conditions doivent être remplies",
+          "Or": "Opérateur logique entre les filtres où au moins une (1) condition doit être vraie",
+          "PropertyIsEqualTo": "Identique (sensible à la case)",
+          "PropertyIsNotEqualTo": "Différent (sensible à la case)",
+          "PropertyIsLike": "Comme. Exemple: *route* trouve toutes les valeurs contenent 'route', peu importe sa position dans l'attribut. route* trouve toutes les valeurs commencant par 'route'. Options avancées : wildCard ='*', singleChar = '.' escapeChar = '!' (sensible à la case)",
+          "PropertyIsGreaterThan": "Plus grand",
+          "PropertyIsGreaterThanOrEqualTo": "Plus grand ou égal",
+          "PropertyIsLessThan": "Plus petit",
+          "PropertyIsLessThanOrEqualTo": "Plus petit ou égal",
+          "PropertyIsBetween": "Doit être contenu entre les limites inférieure et supérieure (les valeurs sont incluses)",
+          "During": "Doit être contenu entre les périodes de temps spécifiées",
+          "PropertyIsNull": "Dont l'attribut est nul",
+          "Intersects": "Retourne les entités étant en intersection géométrique avec la géométrie fournie",
+          "Within": "Retourne les entités étant entièrement contenue par la géométrie fournie (Within)",
+          "Contains": "Retourne les entités complètement contenues par la géométrie fournie (Contains)"
+        }
       },
       "sourceFields": {
         "selectField": "Choisir un champ"
@@ -106,18 +177,27 @@
       },
       "layer": {
         "hideLayer": "Masquer la couche",
+        "hideSelectedLayers": "Masquer les couches sélectionnées",
         "lowerLayer": "Mettre en arrière",
+        "filterLowerLayer": "Le déplacement arrière se fait toujours selon l'ordre de la carte!",
         "filterPlaceholder": "Filtrer la liste de couches",
+        "activateSelectionMode": "Activer le mode de sélection multiple",
+        "deactivateSelectionMode": "Désactiver le mode de sélection multiple",
+        "tools": "Outils",
+        "selectAll": "Tout sélectionner",
+        "deselectAll": "Tout désélectionner",
         "opacity": "Opacité",
         "raiseLayer": "Mettre en avant",
-        "moreOptions": "Options sur la couche",
+        "filterRaiseLayer": "Le déplacement avant se fait toujours selon l'ordre de la carte!",
+        "moreOptions": "Outils de la couche",
         "removeLayer": "Retirer la couche de la carte",
         "showFeaturesList": "Afficher la liste des entités",
         "showLayer": "Afficher la couche",
+        "showSelectedLayers": "Afficher les couches sélectionnées",
         "subsetLayersListKeyword": "Limiter l'affichage de la liste selon le titre ou  par type (wms, wfs,...)",
         "deleteKeyword": "Supprimer le mot-clé",
-        "subsetLayersListOnlyVisible": "Conserver les couches visibles",
-        "subsetLayersListOnlyInRange": "Conserver les couches de la plage d'échelle active",
+        "subsetLayersListOnlyVisible": "Conserver seulement les couches visibles",
+        "subsetLayersListOnlyInRange": "Conserver seulement les couches de la plage d'échelle active",
         "sortAlphabetically": "Trier la liste des couches en ordre alphabétique",
         "sortMapOrder": "Replacer les couches selon l'ordre cartographique",
         "resetLayersList": "Rétablir l'affichage de l'ensemble des couches",
@@ -125,9 +205,14 @@
         "legend": {
           "default": "Défaut",
           "loadingLegendText": "Chargement de la légende",
-          "noLegendText": "Aucune légende disponible pour cette couche",
-          "noLegendScale": "Aucune légende disponible pour cette échelle",
-          "selectStyle": "Sélectionner le style de la légende"
+          "noLegendText": "Aucune symbologie disponible pour cette couche",
+          "noLegendScale": "Aucune symbologie disponible pour cette échelle",
+          "selectStyle": "Sélectionner le style de la légende",
+          "showAll": "Montrer toutes les couches (non visible et hors échelle)",
+          "noLayersVisibleWithShowAllButton": "Aucune couche actuellement visible. Activez le bouton ci haut pour voir toutes les légendes.",
+          "noLayersVisibleWithShowAllButtonButZoom": "Aucune couche actuellement visible. Si vous zoomez dans la carte, certaines couches apparaîtront OU activez le bouton ci haut pour voir toutes les légendes.",
+          "noLayersVisible": "Aucune couche actuellement visible.",
+          "noLayersVisibleButZoom": "Aucune couche actuellement visible. Par contre, si vous zoomez dans la carte, certaines couches apparaîtront."
         }
       },
       "download": {
@@ -179,12 +264,12 @@
         "showScale": "Afficher l'échelle",
         "title": "Titre"
       },
-      "routingForm": {
+      "directionsForm": {
         "start": "Début",
         "intermediate": "Intermédiaire",
         "end": "Fin",
-        "routingBtn": "Obtenir l'itinéraire",
-        "resetRoutingBtn": "Supprimer l'itinéraire",
+        "directionsBtn": "Obtenir l'itinéraire",
+        "resetDirectionsBtn": "Supprimer l'itinéraire",
         "zoomRoute": "Zoomer sur l'itinéraire",
         "null": "",
         "directions": "Itinéraire",
@@ -205,7 +290,7 @@
           "copyTitle": "Itinéraire"
         }
       },
-      "routing": {
+      "directions": {
         "uturn": "demi-tour",
         "sharp right": "fortement à droite",
         "right": "droite",
@@ -227,6 +312,7 @@
       },
       "search": {
         "placeholder": "Rechercher une localisation ou une couche de données",
+        "emptyType.placeholder": "Veuillez choisir un type de recherche",
         "feature.title": "Localisation",
         "feature.placeholder": "Rechercher une localisation",
         "layer.title": "Couche de données",
@@ -240,7 +326,10 @@
             "title": "Titre",
             "type": "Type",
             "url": "URL",
-            "metadataUrl": "Métadonnées"
+            "metadataUrl": "Métadonnées",
+            "name": "Nom de la couche",
+            "urlInfo": "Lien du service web WMS/WFS",
+            "downloadUrl": "Lien de téléchargement de la données"
           },
           "type": {
             "layer": "Couche",
@@ -271,10 +360,15 @@
             "mrc": "MRC",
             "regadmin": "Région administrative",
             "road": "Route",
+            "intersection": "Intersection",
             "place": "Lieu",
+            "exit": "Sortie d'autoroute",
+            "cn": "Borne du CN",
+            "gcc": "Repère de la garde cotière (GCC)",
             "sumi": "Borne SUMI",
             "km": "Repère kilométrique",
-            "entreprise": "Entreprise"
+            "entreprise": "Entreprise",
+            "cadastre": "Cadastre"
           },
           "restrictExtent": {
             "map": "À l'étendue de la carte",
@@ -294,6 +388,8 @@
           "tooltip": "Afficher les coordonnées du curseur ainsi que d'autres informations sur sa position en fonction des types de résultats activées. Utiliser F2 pour activer / désactiver."
         },
         "searchSources": {
+          "selectAll": "Tout sélectionner",
+          "unselectAll": "Tout désélectionner",
           "settings": {
             "results type": "Type de résultat",
             "ecmax": "Écart maximal",
@@ -316,10 +412,15 @@
         "polygon": "Surface"
       },
       "targetHtmlUrl": "Ouvrir le lien externe",
+      "searchByCoord": "Rechercher par coordonnées",
+      "searchByName": "Rechercher par nom",
+      "seeRouting": "Voir l'itinéraire",
       "timeFilter": {
         "date": "Date",
         "endDate": "Date de fin",
-        "startDate": "Date de début"
+        "startDate": "Date de début",
+        "hour": "Heure",
+        "minute": "Minute"
       },
       "spatialFilter": {
         "predefined": "Zone Prédéfinie",
@@ -329,6 +430,7 @@
         "drawPolygon": "Dessiner un polygone",
         "drawCircle": "Dessiner un cercle",
         "searchLabel": "Rechercher par",
+        "buffer": "Zone tampon",
         "search": "Recherche",
         "drawControl": "Activer le contrôle de dessin",
         "listLabel": "Zone",
@@ -336,6 +438,7 @@
         "layer": "Couche",
         "goSearch": "Lancer la recherche",
         "removeLayer": "Retirer les résultats",
+        "exportLayer": "Exporter les résultats",
         "clearForm": "Retirer le dessin",
         "clearSearch": "Réinitialiser",
         "Address": "Adresses",
@@ -343,7 +446,8 @@
         "searchResults": "Résultats de la recherche",
         "type": "Type",
         "radius": "Rayon",
-        "radiusAlert": "Le rayon doit être compris entre 0 et 10000",
+        "radiusAlert": "Le rayon doit être compris entre 0 et 100 kilomètres (ou 100 000 mètres)",
+        "bufferAlert": "La zone tampon doit être comprise entre 0 et 100 kilomètres (ou 100 000 mètres)",
         "maxSizeAlert": "Le nombre de résultats excède 10000. Certains pourraient être manquants.",
         "zeroResults": "Aucun résultat ne correspond à cette recherche.",
         "warning": "Avertissement",
@@ -353,7 +457,9 @@
           "culturel": "Culturel",
           "education": "Éducation",
           "sante": "Santé",
-          "securite": "Sécurité"
+          "securite": "Sécurité",
+          "sepaq": "SÉPAQ",
+          "transport": "Transport"
         }
       },
       "terrapi": {
@@ -369,6 +475,10 @@
         "hydro": "Hydrographie",
         "routes": "Routes",
         "bati": "Bâtiments",
+        "batiment": "Bâtiments",
+        "camping": "Camping",
+        "equipement": "Équipements",
+        "commun": "Commun",
         "geographie": "Lieux naturels",
         "parc": "Parcs",
         "secteur": "Secteurs",
@@ -445,13 +555,6 @@
           "modify.tooltip": "Modifier"
         }
       },
-      "workspace": {
-        "ogcFilter.close": "Fermer",
-        "ogcFilter.title": "Filtres",
-        "ogcFilter.tooltip": "Appliquer des filtres sur la couche",
-        "wfsDownload.title": "Télécharger les données associées",
-        "wfsDownload.tooltip": "Télécharger les données associées"
-      },
       "network": {
         "online": {
           "message": "En ligne",
@@ -461,6 +564,10 @@
           "message": "Hors-Ligne",
           "title": "Statut:"
         }
+      },   
+      "workspace": {
+        "inMapExtent.active.tooltip": "Ne montrer que les enregistrements contenus dans la carte",
+        "inMapExtent.inactive.tooltip": "Montrer tous les enregistrements"
       }
     }
   }

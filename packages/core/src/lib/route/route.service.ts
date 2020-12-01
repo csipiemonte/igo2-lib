@@ -35,14 +35,13 @@ export class RouteService {
       searchKey: 'search',
       visibleOnLayersKey: 'visiblelayers',
       visibleOffLayersKey: 'invisiblelayers',
-      routingCoordKey: 'routing',
+      directionsCoordKey: 'routing',
       toolKey: 'tool',
-      llcKKey: 'llck',
-      llcAKey: 'llca',
-      llcVKey: 'llcv',
-      llcRKey: 'llcr',
       wmsUrlKey: 'wmsUrl',
-      layersKey:  'layers'
+      wmsLayersKey:  'wmsLayers',
+      wmtsUrlKey: 'wmtsUrl',
+      wmtsLayersKey:  'wmtsLayers',
+      vectorKey: 'vector'
     };
     this.options = Object.assign({}, defaultOptions, options);
   }

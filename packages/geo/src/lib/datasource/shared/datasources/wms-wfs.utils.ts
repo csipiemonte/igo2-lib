@@ -25,17 +25,20 @@ export function formatWFSQueryString(
   dataSourceOptions: WFSDataSourceOptions | WMSDataSourceOptions,
   count?: number,
   epsg?: string,
-  properties?: string
+  properties?: string,
+  startIndex: number = 0,
+  forceDefaultOutputFormat: boolean = false
 ): { name: string; value: string }[] {
   const versionWfs200 = '2.0.0'; // not the same usage as defaultWfsVersion.
   const url = dataSourceOptions.urlWfs;
   const paramsWFS = dataSourceOptions.paramsWFS;
   const effectiveCount = count || defaultMaxFeatures;
+  const effectiveStartIndex = paramsWFS.version === versionWfs200 ? `startIndex=${startIndex}` : '';
   const epsgCode = epsg || defaultEpsg;
-  const outputFormat = paramsWFS.outputFormat
+  let outputFormat = paramsWFS.outputFormat
     ? `outputFormat=${paramsWFS.outputFormat}`
     : '';
-  const version = paramsWFS.version
+  let version = paramsWFS.version
     ? `version=${paramsWFS.version}`
     : `version=${defaultWfsVersion}`;
   const paramTypename =
@@ -43,11 +46,17 @@ export function formatWFSQueryString(
   const featureTypes = `${paramTypename}=${paramsWFS.featureTypes}`;
   const paramMaxFeatures =
     paramsWFS.version === versionWfs200 ? 'count' : 'maxFeatures';
-  const cnt = count
+  let cnt = count
     ? `${paramMaxFeatures}=${effectiveCount}`
     : paramsWFS.maxFeatures
     ? `${paramMaxFeatures}=${paramsWFS.maxFeatures}`
     : `${paramMaxFeatures}=${effectiveCount}`;
+  if (forceDefaultOutputFormat) {
+      outputFormat = '';
+      version = 'version=1.1.0';
+      cnt = cnt.replace('count', 'maxFeatures');
+    }
+
   const srs = epsg
     ? `srsname=${epsgCode}`
     : paramsWFS.srsName
@@ -73,7 +82,7 @@ export function formatWFSQueryString(
 
   const getCapabilities = `${url}?service=WFS&request=GetCapabilities&${version}`;
   let getFeature = `${url}?service=WFS&request=GetFeature&${version}&${featureTypes}&`;
-  getFeature += `${outputFormat}&${srs}&${cnt}&${propertyName}`;
+  getFeature += `${outputFormat}&${srs}&${cnt}&${propertyName}&${effectiveStartIndex}`;
 
   let getpropertyvalue = `${url}?service=WFS&request=GetPropertyValue&version=${versionWfs200}&${featureTypes}&`;
   getpropertyvalue += `&${cnt}&${valueReference}`;
@@ -129,51 +138,53 @@ export function checkWfsParams(wfsDataSourceOptions, srcType?: string) {
 export function getFormatFromOptions(
   options: WFSDataSourceOptions | WMSDataSourceOptions
 ) {
+  const wfsOptions = options as WFSDataSourceOptions;
+
   let olFormatCls = OlFormat.WFS;
-  const outputFormat = options.paramsWFS.outputFormat
-    ? options.paramsWFS.outputFormat
+  const outputFormat = wfsOptions.paramsWFS.outputFormat
+    ? wfsOptions.paramsWFS.outputFormat
     : undefined;
 
   if (!outputFormat) {
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   }
 
   if (OlFormat[outputFormat]) {
     olFormatCls = OlFormat[outputFormat];
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('gml2')) {
     olFormatCls = OlFormat.WFS;
-    return new olFormatCls({ gmlFormat: olFormatGML2 });
+    return new olFormatCls({ ...wfsOptions.formatOptions, ... { gmlFormat: olFormatGML2 }});
   } else if (outputFormat.toLowerCase().match('gml32')) {
     olFormatCls = OlFormat.WFS;
-    return new olFormatCls({ gmlFormat: olFormatGML32 });
+    return new olFormatCls({ ...wfsOptions.formatOptions, ... { gmlFormat: olFormatGML32 }});
   } else if (outputFormat.toLowerCase().match('gml3')) {
     olFormatCls = OlFormat.WFS;
-    return new olFormatCls({ gmlFormat: olFormatGML3 });
+    return new olFormatCls({ ...wfsOptions.formatOptions, ... { gmlFormat: olFormatGML3 }});
   } else if (outputFormat.toLowerCase().match('topojson')) {
     olFormatCls = OlFormat.TopoJSON;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('geojson')) {
     olFormatCls = OlFormat.GeoJSON;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('esrijson')) {
     olFormatCls = OlFormat.EsriJSON;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('json')) {
     olFormatCls = OlFormat.GeoJSON;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('gpx')) {
     olFormatCls = OlFormat.GPX;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('WKT')) {
     olFormatCls = OlFormat.WKT;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('osmxml')) {
     olFormatCls = olFormatOSMXML;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   } else if (outputFormat.toLowerCase().match('kml')) {
     olFormatCls = OlFormat.KML;
-    return new olFormatCls();
+    return new olFormatCls(wfsOptions.formatOptions);
   }
 
   return new olFormatCls();

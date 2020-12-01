@@ -1,11 +1,9 @@
 import { Component, Input, OnInit } from '@angular/core';
 
-import * as olstyle from 'ol/style';
-
 import { Layer } from '../../layer/shared/layers/layer';
-import { DownloadService } from '../../download/shared/download.service';
 import { WMSDataSource } from '../../datasource/shared/datasources/wms-datasource';
 import { WFSDataSourceOptionsParams } from '../../datasource/shared/datasources/wfs-datasource.interface';
+import { OgcFilterOperator } from '../../filter/shared/ogc-filter.enum';
 
 import {
   OgcFilterableDataSource,
@@ -25,12 +23,14 @@ import { BehaviorSubject } from 'rxjs';
 export class OgcFilterableItemComponent implements OnInit {
   public color = 'primary';
   private lastRunOgcFilter;
-  private defaultLogicalParent = 'And';
+  private defaultLogicalParent = OgcFilterOperator.And;
   public hasActiveSpatialFilter = false;
   public filtersAreEditable = true;
   public filtersCollapsed = true;
   public hasPushButton: boolean = false;
   showLegend$: BehaviorSubject<boolean> = new BehaviorSubject(false);
+
+  private ogcFilterWriter;
 
   @Input() layer: Layer;
 
@@ -46,14 +46,9 @@ export class OgcFilterableItemComponent implements OnInit {
     return this.layer.dataSource as OgcFilterableDataSource;
   }
 
-  get downloadable() {
-    return (this.datasource.options as any).download;
+  constructor(private ogcFilterService: OGCFilterService) {
+    this.ogcFilterWriter = new OgcFilterWriter();
   }
-
-  constructor(
-    private ogcFilterService: OGCFilterService,
-    private downloadService: DownloadService
-  ) {}
 
   ngOnInit() {
     const ogcFilters = this.datasource.options.ogcFilters;
@@ -117,14 +112,20 @@ export class OgcFilterableItemComponent implements OnInit {
       fieldNameGeometry = (this.datasource.options as any).paramsWFS
         .fieldNameGeometry;
     }
-    const status = arr.length === 0 ? true : false;
+    const allowedOperators = this.ogcFilterWriter.computeAllowedOperators(
+      this.datasource.options.sourceFields,
+      firstFieldName,
+      this.datasource.options.ogcFilters.allowedOperatorsType);
+    const firstOperatorName = Object.keys(allowedOperators)[0];
+
     arr.push(
-      new OgcFilterWriter().addInterfaceFilter(
+      this.ogcFilterWriter.addInterfaceFilter(
         {
           propertyName: firstFieldName,
-          operator: 'PropertyIsEqualTo',
-          active: status,
-          igoSpatialSelector: 'fixedExtent'
+          operator: firstOperatorName,
+          active: true,
+          igoSpatialSelector: 'fixedExtent',
+          srsName: this.map.projection,
         } as OgcInterfaceFilterOptions,
         fieldNameGeometry,
         lastLevel,
@@ -134,19 +135,13 @@ export class OgcFilterableItemComponent implements OnInit {
     this.datasource.options.ogcFilters.interfaceOgcFilters = arr;
   }
 
-  openDownload() {
-    this.downloadService.open(this.layer);
-  }
-
   refreshFilters(force?: boolean) {
     if (force === true) {
       this.lastRunOgcFilter = undefined;
     }
     const ogcFilters: OgcFiltersOptions = this.datasource.options.ogcFilters;
-    const ogcFilterWriter = new OgcFilterWriter();
-    const activeFilters = ogcFilters.interfaceOgcFilters.filter(
-      f => f.active === true
-    );
+    const activeFilters = ogcFilters.interfaceOgcFilters ?
+      ogcFilters.interfaceOgcFilters.filter(f => f.active === true) : [];
     if (activeFilters.length === 0) {
       ogcFilters.filters = undefined;
       ogcFilters.filtered = false;
@@ -170,10 +165,10 @@ export class OgcFilterableItemComponent implements OnInit {
       if (this.layer.dataSource.options.type === 'wfs') {
         const ogcDataSource: any = this.layer.dataSource;
         const ogcLayer: OgcFiltersOptions = ogcDataSource.options.ogcFilters;
-        ogcLayer.filters = ogcFilterWriter.rebuiltIgoOgcFilterObjectFromSequence(
+        ogcLayer.filters = this.ogcFilterWriter.rebuiltIgoOgcFilterObjectFromSequence(
           activeFilters
         );
-        this.layer.dataSource.ol.clear();
+        this.layer.dataSource.ol.refresh();
       } else if (
         this.layer.dataSource.options.type === 'wms' &&
         ogcFilters.enabled
@@ -182,14 +177,15 @@ export class OgcFilterableItemComponent implements OnInit {
         if (activeFilters.length >= 1) {
           const ogcDataSource: any = this.layer.dataSource;
           const ogcLayer: OgcFiltersOptions = ogcDataSource.options.ogcFilters;
-          ogcLayer.filters = ogcFilterWriter.rebuiltIgoOgcFilterObjectFromSequence(
+          ogcLayer.filters = this.ogcFilterWriter.rebuiltIgoOgcFilterObjectFromSequence(
             activeFilters
           );
-          rebuildFilter = ogcFilterWriter.buildFilter(
+          rebuildFilter = this.ogcFilterWriter.buildFilter(
             ogcLayer.filters,
             undefined,
             undefined,
-            (this.layer.dataSource.options as any).fieldNameGeometry
+            (this.layer.dataSource.options as any).fieldNameGeometry,
+            ogcDataSource.options
           );
         }
         this.ogcFilterService.filterByOgc(
@@ -204,6 +200,7 @@ export class OgcFilterableItemComponent implements OnInit {
     } else {
       // identical filter. Nothing triggered
     }
+    (this.layer.dataSource as OgcFilterableDataSource).setOgcFilters(ogcFilters, true);
   }
 
   public setVisible() {

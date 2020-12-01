@@ -1,8 +1,9 @@
 import { Component, Input } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
+import { take } from 'rxjs/operators';
 
 import { MessageService, LanguageService } from '@igo2/core';
-import { IgoMap } from '@igo2/geo';
+import type { IgoMap } from '@igo2/geo';
 
 import { ContextService } from '../../context-manager/shared/context.service';
 import { BookmarkDialogComponent } from './bookmark-dialog.component';
@@ -42,6 +43,7 @@ export class BookmarkButtonComponent {
     this.dialog
       .open(BookmarkDialogComponent, { disableClose: false })
       .afterClosed()
+      .pipe(take(1))
       .subscribe(title => {
         if (title) {
           const context = this.contextService.getContextFromMap(this.map);

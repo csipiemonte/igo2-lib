@@ -1,3 +1,4 @@
+import { SearchSource } from './../../search/shared/sources/source';
 import { FormGroup } from '@angular/forms';
 
 import { GeoJsonGeometryTypes } from 'geojson';
@@ -21,6 +22,7 @@ export interface Feature<P = { [key: string]: any }> {
   extent?: [number, number, number, number];
   meta?: FeatureMeta;
   ol?: OlFeature;
+  sourceId?: string;
 }
 
 export interface FeatureMeta {
@@ -64,6 +66,12 @@ export interface FeatureStoreLoadingStrategyOptions
   getFeatureId?: (Feature) => EntityKey;
   motion?: FeatureMotion;
 }
+
+export interface FeatureStoreInMapExtentStrategyOptions
+extends FeatureStoreStrategyOptions {}
+
+export interface FeatureStoreInMapResolutionStrategyOptions
+  extends FeatureStoreStrategyOptions {}
 
 export interface FeatureStoreLoadingLayerStrategyOptions
   extends FeatureStoreStrategyOptions {}

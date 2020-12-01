@@ -1,16 +1,24 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import {
+  HttpClient,
+  HttpParams,
+  HttpErrorResponse
+} from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { Cacheable } from 'ngx-cacheable';
 
-import { WMSCapabilities, WMTSCapabilities } from 'ol/format';
+import { WMSCapabilities, WMTSCapabilities, EsriJSON } from 'ol/format';
 import { optionsFromCapabilities } from 'ol/source/WMTS.js';
 import olAttribution from 'ol/control/Attribution';
 
 import { ObjectUtils } from '@igo2/utils';
-import { getResolutionFromScale } from '../../map';
+import { getResolutionFromScale } from '../../map/shared/map.utils';
 import { EsriStyleGenerator } from '../utils/esri-style-generator';
+import {
+  QueryFormat,
+  QueryFormatMimeType
+} from '../../query/shared/query.enums';
 
 import {
   WMTSDataSourceOptions,
@@ -28,14 +36,23 @@ import {
   TimeFilterStyle
 } from '../../filter/shared/time-filter.enum';
 
+export enum TypeCapabilities {
+  wms = 'wms',
+  wmts = 'wmts',
+  arcgisrest = 'esriJSON',
+  tilearcgisrest = 'esriJSON'
+}
+
+export type TypeCapabilitiesStrings = keyof typeof TypeCapabilities;
+
 @Injectable({
   providedIn: 'root'
 })
 export class CapabilitiesService {
-  private capabilitiesStore: any[] = [];
   private parsers = {
     wms: new WMSCapabilities(),
-    wmts: new WMTSCapabilities()
+    wmts: new WMTSCapabilities(),
+    esriJSON: new EsriJSON()
   };
 
   constructor(private http: HttpClient) {}
@@ -100,7 +117,7 @@ export class CapabilitiesService {
     const arcgisOptions = this.http.get(baseUrl);
     const legend = this.http.get(legendUrl).pipe(
       map((res: any) => res),
-      catchError(err => {
+      catchError((err) => {
         console.log('No legend associated with this Feature Service');
         return of(err);
       })
@@ -131,7 +148,7 @@ export class CapabilitiesService {
     maxCacheCount: 20
   })
   getCapabilities(
-    service: 'wms' | 'wmts',
+    service: TypeCapabilitiesStrings,
     baseUrl: string,
     version?: string
   ): Observable<any> {
@@ -144,18 +161,39 @@ export class CapabilitiesService {
       }
     });
 
-    const request = this.http.get(baseUrl, {
-      params,
-      responseType: 'text'
-    });
+    let request;
+    if ((service as any) === 'esriJSON') {
+      request = this.http.get(baseUrl + '?f=json');
+    } else {
+      request = this.http.get(baseUrl, {
+        params,
+        responseType: 'text'
+      });
+    }
 
     return request.pipe(
-      map(res => {
-        try {
-          return this.parsers[service].read(res);
-        } catch (e) {
-          return undefined;
+      map((res) => {
+        if ((service as any) === 'esriJSON') {
+          return res;
         }
+        if (
+          String(res).toLowerCase().includes('serviceexception') &&
+          String(res).toLowerCase().includes('access denied')
+        ) {
+          throw {
+            error: {
+              message: 'Service error getCapabilities: Access is denied'
+            }
+          };
+        } else {
+          return this.parsers[service].read(res);
+        }
+      }),
+      catchError((e) => {
+        if (typeof e.error !== 'undefined') {
+          e.error.caught = true;
+        }
+        throw e;
       })
     );
   }
@@ -171,22 +209,52 @@ export class CapabilitiesService {
     );
 
     if (!layer) {
-      return baseOptions;
+      throw {
+        error: {
+          message: 'Layer not found'
+        }
+      };
     }
     const metadata = layer.DataURL ? layer.DataURL[0] : undefined;
     const abstract = layer.Abstract ? layer.Abstract : undefined;
     const keywordList = layer.KeywordList ? layer.KeywordList : undefined;
-    const queryable = layer.queryable;
+    let queryable = layer.queryable;
     const timeFilter = this.getTimeFilter(layer);
     const timeFilterable = timeFilter && Object.keys(timeFilter).length > 0;
     const legendOptions = layer.Style ? this.getStyle(layer.Style) : undefined;
 
+    let queryFormat: QueryFormat;
+    const queryFormatMimeTypePriority = [
+      QueryFormatMimeType.GEOJSON,
+      QueryFormatMimeType.GEOJSON2,
+      QueryFormatMimeType.GML3,
+      QueryFormatMimeType.GML2,
+      QueryFormatMimeType.JSON,
+      QueryFormatMimeType.HTML
+    ];
+
+    for (const mimeType of queryFormatMimeTypePriority) {
+      if (
+        capabilities.Capability.Request.GetFeatureInfo.Format.indexOf(
+          mimeType
+        ) !== -1
+      ) {
+        const keyEnum = Object.keys(QueryFormatMimeType).find(
+          (key) => QueryFormatMimeType[key] === mimeType
+        );
+        queryFormat = QueryFormat[keyEnum];
+        break;
+      }
+    }
+    if (!queryFormat) {
+      queryable = false;
+    }
+
     const options: WMSDataSourceOptions = ObjectUtils.removeUndefined({
-      _layerOptionsFromCapabilities: {
+      _layerOptionsFromSource: {
         title: layer.Title,
-        maxResolution:
-          getResolutionFromScale(layer.MaxScaleDenominator) || Infinity,
-        minResolution: getResolutionFromScale(layer.MinScaleDenominator) || 0,
+        maxResolution: getResolutionFromScale(layer.MaxScaleDenominator),
+        minResolution: getResolutionFromScale(layer.MinScaleDenominator),
         metadata: {
           url: metadata ? metadata.OnlineResource : undefined,
           extern: metadata ? true : undefined,
@@ -196,8 +264,12 @@ export class CapabilitiesService {
         legendOptions
       },
       queryable,
+      queryFormat,
       timeFilter: timeFilterable ? timeFilter : undefined,
-      timeFilterable: timeFilterable ? true : undefined
+      timeFilterable: timeFilterable ? true : undefined,
+      minDate: timeFilterable ? timeFilter.min : undefined,
+      maxDate: timeFilterable ? timeFilter.max : undefined,
+      stepDate: timeFilterable ? timeFilter.step : undefined
     });
 
     return ObjectUtils.mergeDeep(options, baseOptions);
@@ -207,9 +279,21 @@ export class CapabilitiesService {
     baseOptions: WMTSDataSourceOptions,
     capabilities: any
   ): WMTSDataSourceOptions {
+    // Put Title source in _layerOptionsFromSource. (For source & catalog in _layerOptionsFromSource, if not already on config)
+    const layer = capabilities.Contents.Layer.find(
+      (el) => el.Identifier === baseOptions.layer
+    );
+
     const options = optionsFromCapabilities(capabilities, baseOptions);
 
-    return Object.assign(options, baseOptions);
+    const ouputOptions = Object.assign(options, baseOptions);
+    const sourceOptions = ObjectUtils.removeUndefined({
+      _layerOptionsFromSource: {
+        title: layer.Title
+      }
+    });
+
+    return ObjectUtils.mergeDeep(sourceOptions, ouputOptions);
   }
 
   private parseCartoOptions(
@@ -218,7 +302,7 @@ export class CapabilitiesService {
   ): CartoDataSourceOptions {
     const layers = [];
     const params = cartoOptions.layers[1].options.layer_definition;
-    params.layers.forEach(element => {
+    params.layers.forEach((element) => {
       layers.push({
         type: element.type.toLowerCase(),
         options: element.options,
@@ -239,6 +323,7 @@ export class CapabilitiesService {
     arcgisOptions: any,
     legend?: any
   ): ArcGISRestDataSourceOptions {
+    const title = arcgisOptions.name;
     const legendInfo = legend.layers ? legend : undefined;
     const styleGenerator = new EsriStyleGenerator();
     const units = arcgisOptions.units === 'esriMeters' ? 'm' : 'degrees';
@@ -274,7 +359,10 @@ export class CapabilitiesService {
       }
     );
     const options = ObjectUtils.removeUndefined({
-      params
+      params,
+      _layerOptionsFromSource: {
+        title
+      }
     });
     return ObjectUtils.mergeDeep(options, baseOptions);
   }
@@ -324,7 +412,7 @@ export class CapabilitiesService {
   private findDataSourceInCapabilities(layerArray, name): any {
     if (Array.isArray(layerArray)) {
       let layer;
-      layerArray.find(value => {
+      layerArray.find((value) => {
         layer = this.findDataSourceInCapabilities(value, name);
         return layer !== undefined;
       }, this);
@@ -362,7 +450,7 @@ export class CapabilitiesService {
   }
 
   getStyle(Style): LegendOptions {
-    const styleOptions: ItemStyleOptions[] = Style.map(style => {
+    const styleOptions: ItemStyleOptions[] = Style.map((style) => {
       return {
         name: style.Name,
         title: style.Title

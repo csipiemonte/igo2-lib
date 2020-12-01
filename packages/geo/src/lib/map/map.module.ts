@@ -1,11 +1,9 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import {
-  MatIconModule,
-  MatButtonModule,
-  MatTooltipModule
-} from '@angular/material';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { IgoLanguageModule } from '@igo2/core';
 import { IgoConfirmDialogModule } from '@igo2/common';
@@ -19,7 +17,7 @@ import { MiniBaseMapComponent } from './baselayers-switcher/mini-basemap.compone
 import { MapOfflineDirective } from './shared/mapOffline.directive';
 import { OfflineButtonComponent } from './offline-button/offline-button.component';
 import { PointerPositionDirective } from './shared/map-pointer-position.directive';
-import { PointerPositionByKeyDirective } from './shared/map-pointer-position-by-key.directive';
+import { HoverFeatureDirective } from './shared/hover-feature.directive';
 
 @NgModule({
   imports: [
@@ -40,7 +38,7 @@ import { PointerPositionByKeyDirective } from './shared/map-pointer-position-by-
     MapOfflineDirective,
     OfflineButtonComponent,
     PointerPositionDirective,
-    PointerPositionByKeyDirective
+    HoverFeatureDirective
   ],
   declarations: [
     MapBrowserComponent,
@@ -52,7 +50,7 @@ import { PointerPositionByKeyDirective } from './shared/map-pointer-position-by-
     MapOfflineDirective,
     OfflineButtonComponent,
     PointerPositionDirective,
-    PointerPositionByKeyDirective
+    HoverFeatureDirective
   ]
 })
 export class IgoMapModule {}

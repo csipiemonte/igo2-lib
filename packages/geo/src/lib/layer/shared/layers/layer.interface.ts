@@ -16,11 +16,47 @@ export interface LayerOptions {
   zIndex?: number;
   minResolution?: number;
   maxResolution?: number;
+  minScaleDenom?: number;
+  maxScaleDenom?: number;
   showInLayerList?: boolean;
   removable?: boolean;
+  workspace?: GeoWorkspaceOptions;
   legendOptions?: LegendOptions;
   ol?: olLayer;
   tooltip?: TooltipContent;
+  _internal?: { [key: string]: string };
+  active?: boolean;
+  check?: boolean;
+  linkedLayers?: LayersLink;
+}
+
+export interface GeoWorkspaceOptions {
+  srcId?: string;
+  workspaceId?: string;
+  minResolution?: number;
+  maxResolution?: number;
+  enabled?: boolean;
+}
+
+export interface LayersLink {
+  linkId: string;
+  links?: LayersLinkProperties[];
+}
+export interface LayersLinkProperties {
+  bidirectionnal?: boolean;
+  linkedIds: string[];
+  syncedDelete: boolean;
+  properties: LinkedProperties[];
+}
+
+export enum LinkedProperties {
+  OPACITY = 'opacity',
+  VISIBLE = 'visible',
+  OGCFILTERS = 'ogcFilters',
+  MINRESOLUTION = 'minResolution',
+  MAXRESOLUTION = 'maxResolution',
+  ZINDEX = 'zIndex',
+  TIMEFILTER = 'timeFilter'
 }
 
 export interface GroupLayers {
@@ -50,10 +86,9 @@ export interface LegendOptions {
 export interface ItemStyleOptions {
   name: string;
   title?: string;
-  }
+}
 
 export interface OutputLayerLegend {
   title: string;
   url: string;
-  image: string;
 }

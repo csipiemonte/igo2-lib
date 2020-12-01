@@ -1,0 +1,32 @@
+.context-filter-max-width {
+  width: calc(100% - 100px);
+  margin: 5px;
+  padding-left: 6px;
+}
+
+.context-filter-min-width {
+  width: calc(100% - 135px);
+  margin: 5px;
+  padding-left: 6px;
+}
+
+.clear-button {
+  padding-right: 5px;
+}
+
+mat-form-field {
+  height: 40px;
+}
+
+.profilsMenu {
+  display: flex;
+  & > mat-checkbox {
+    width: 8px;
+  }
+}
+
+.add-context-button {
+  margin: 0px;
+  width: 40px;
+  display: inline-flex;
+}

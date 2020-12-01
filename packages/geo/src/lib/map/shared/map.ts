@@ -28,6 +28,7 @@ import {
 } from './map.interface';
 import { MapViewController } from './controllers/view';
 import { FeatureDataSource } from '../../datasource/shared/datasources/feature-datasource';
+import { FeatureMotion } from '../../feature/shared/feature.enums';
 
 // TODO: This class is messy. Clearly define it's scope and the map browser's.
 // Move some stuff into controllers.
@@ -36,6 +37,8 @@ export class IgoMap {
   public offlineButtonToggle$ = new BehaviorSubject<boolean>(false);
   public layers$ = new BehaviorSubject<Layer[]>([]);
   public status$: Subject<SubjectStatus>;
+  public alwaysTracking: boolean;
+  public positionFollower: boolean = true;
   public geolocation$ = new BehaviorSubject<olGeolocation>(undefined);
   public geolocationFeature: olFeature;
   public bufferGeom: olCircle;
@@ -134,6 +137,9 @@ export class IgoMap {
     );
 
     this.setView(Object.assign(viewOptions, options));
+    if (options.maxZoomOnExtent) {
+      this.viewController.maxZoomOnExtent = options.maxZoomOnExtent;
+    }
   }
 
   /**
@@ -145,6 +151,7 @@ export class IgoMap {
       this.viewController.clearStateHistory();
     }
 
+    options = Object.assign({ constrainResolution: true }, options);
     const view = new olView(options);
     this.ol.setView(view);
 
@@ -159,15 +166,25 @@ export class IgoMap {
       if (options.geolocate) {
         this.geolocate(true);
       }
+
+      if (options.alwaysTracking) {
+        this.alwaysTracking = true;
+      }
     }
   }
 
-  // TODO: Move to ViewController and update every place it's used
+  /**
+   * Deprecated
+   * TODO: Move to ViewController and update every place it's used
+   */
   getCenter(projection?: string | OlProjection): [number, number] {
     return this.viewController.getCenter(projection);
   }
 
-  // TODO: Move to ViewController and update every place it's used
+  /**
+   * Deprecated
+   * TODO: Move to ViewController and update every place it's used
+   */
   getExtent(projection?: string | OlProjection): MapExtent {
     return this.viewController.getExtent(projection);
   }
@@ -188,8 +205,12 @@ export class IgoMap {
 
     baseLayer.visible = true;
 
-    this.viewController.olView.setMinZoom(baseLayer.dataSource.options.minZoom || (this.options.view || {}).minZoom);
-    this.viewController.olView.setMaxZoom(baseLayer.dataSource.options.maxZoom || (this.options.view || {}).maxZoom);
+    this.viewController.olView.setMinZoom(
+      baseLayer.dataSource.options.minZoom || (this.options.view || {}).minZoom
+    );
+    this.viewController.olView.setMaxZoom(
+      baseLayer.dataSource.options.maxZoom || (this.options.view || {}).maxZoom
+    );
   }
 
   getBaseLayers(): Layer[] {
@@ -203,6 +224,12 @@ export class IgoMap {
   getLayerByAlias(alias: string): Layer {
     return this.layers.find(
       (layer: Layer) => layer.alias && layer.alias === alias
+    );
+  }
+
+  getLayerByOlUId(olUId: string): Layer {
+    return this.layers.find(
+      (layer: Layer) => layer.ol.ol_uid && layer.ol.ol_uid === olUId
     );
   }
 
@@ -221,9 +248,17 @@ export class IgoMap {
    * @param push DEPRECATED
    */
   addLayers(layers: Layer[], push = true) {
-    let incrementArray = 0;
+    let offsetZIndex = 0;
+    let offsetBaseLayerZIndex = 0;
     const addedLayers = layers
-      .map((layer: Layer) => this.doAddLayer(layer, incrementArray++))
+      .map((layer: Layer) => {
+        const offset = layer.zIndex
+          ? 0
+          : layer.baseLayer
+          ? offsetBaseLayerZIndex++
+          : offsetZIndex++;
+        return this.doAddLayer(layer, offset);
+      })
       .filter((layer: Layer | undefined) => layer !== undefined);
     this.setLayers([].concat(this.layers, addedLayers));
   }
@@ -244,15 +279,66 @@ export class IgoMap {
     const newLayers = this.layers$.value.slice(0);
     const layersToRemove = [];
     layers.forEach((layer: Layer) => {
-      const index = this.getLayerIndex(layer);
+      const index = newLayers.indexOf(layer);
       if (index >= 0) {
         layersToRemove.push(layer);
         newLayers.splice(index, 1);
+        this.handleLinkedLayersDeletion(layer, layersToRemove);
+        layersToRemove.map(linkedLayer => {
+          layersToRemove.push(linkedLayer);
+          const linkedIndex = newLayers.indexOf(linkedLayer);
+          if (linkedIndex >= 0) {
+            newLayers.splice(linkedIndex, 1);
+          }
+        });
       }
     });
 
     layersToRemove.forEach((layer: Layer) => this.doRemoveLayer(layer));
     this.setLayers(newLayers);
+  }
+
+  /**
+   * Build a list of linked layers to delete
+   * @param srcLayer Layer that has triggered the deletion
+   * @param layersToRemove list to append the layer to delete into
+   */
+  handleLinkedLayersDeletion(srcLayer: Layer, layersToRemove: Layer[]) {
+    const linkedLayers = srcLayer.options.linkedLayers;
+    if (!linkedLayers) {
+      return;
+    }
+    const currentLinkedId = linkedLayers.linkId;
+    const currentLinks = linkedLayers.links;
+    const isParentLayer = currentLinks ? true : false;
+    if (isParentLayer) {
+      // search for child layers
+      currentLinks.map(link => {
+        if (!link.syncedDelete) {
+          return;
+        }
+        link.linkedIds.map(linkedId => {
+          const layerToApply = this.layers.find(layer => layer.options.linkedLayers?.linkId === linkedId);
+          if (layerToApply) {
+            layersToRemove.push(layerToApply);
+          }
+        });
+      });
+    } else {
+      // search for parent layer
+      this.layers.map(layer => {
+        if (layer.options.linkedLayers?.links) {
+          layer.options.linkedLayers.links.map(l => {
+            if (
+              l.syncedDelete && l.bidirectionnal !== false &&
+              l.linkedIds.indexOf(currentLinkedId) !== -1) {
+              layersToRemove.push(layer);
+              this.handleLinkedLayersDeletion(layer, layersToRemove);
+            }
+          });
+        }
+      });
+    }
   }
 
   /**
@@ -265,8 +351,14 @@ export class IgoMap {
 
   raiseLayer(layer: Layer) {
     const index = this.getLayerIndex(layer);
-    if (index > 0) {
+    if (index > 1) {
       this.moveLayer(layer, index, index - 1);
+    }
+  }
+
+  raiseLayers(layers: Layer[]) {
+    for (const layer of layers) {
+      this.raiseLayer(layer);
     }
   }
 
@@ -277,12 +369,19 @@ export class IgoMap {
     }
   }
 
+  lowerLayers(layers: Layer[]) {
+    const reverseLayers = layers.reverse();
+    for (const layer of reverseLayers) {
+      this.lowerLayer(layer);
+    }
+  }
+
   moveLayer(layer: Layer, from: number, to: number) {
     const layerTo = this.layers[to];
     const zIndexTo = layerTo.zIndex;
     const zIndexFrom = layer.zIndex;
 
-    if (layerTo.baseLayer) {
+    if (layerTo.baseLayer || layer.baseLayer) {
       return;
     }
 
@@ -300,7 +399,7 @@ export class IgoMap {
    * @param layer Layer
    * @returns The layer added, if any
    */
-  private doAddLayer(layer: Layer, length: number) {
+  private doAddLayer(layer: Layer, offsetZIndex: number) {
     if (layer.baseLayer && layer.visible) {
       this.changeBaseLayer(layer);
     }
@@ -311,9 +410,24 @@ export class IgoMap {
       return;
     }
 
+    if (!layer.baseLayer && layer.zIndex) {
+      layer.zIndex += 10;
+    }
+
     if (layer.zIndex === undefined || layer.zIndex === 0) {
-      const offset = layer.baseLayer ? 1 : 10;
-      layer.zIndex = this.layers.length + offset + length;
+      const maxZIndex = Math.max(
+        layer.baseLayer ? 0 : 10,
+        ...this.layers
+          .filter(
+            (l) => l.baseLayer === layer.baseLayer && l.zIndex < 200 // zIndex > 200 = system layer
+          )
+          .map((l) => l.zIndex)
+      );
+      layer.zIndex = maxZIndex + 1 + offsetZIndex;
+    }
+
+    if (layer.baseLayer && layer.zIndex > 9) {
+      layer.zIndex = 10; // baselayer must have zIndex < 10
     }
 
     layer.setMap(this);
@@ -371,7 +485,7 @@ export class IgoMap {
     }
     this.startGeolocation();
 
-    this.geolocation$$ = this.geolocation$.subscribe(geolocation => {
+    this.geolocation$$ = this.geolocation$.subscribe((geolocation) => {
       if (!geolocation) {
         return;
       }
@@ -386,11 +500,22 @@ export class IgoMap {
           )
         ) {
           this.overlay.dataSource.ol.removeFeature(this.geolocationFeature);
+        }
+
+        if (this.bufferFeature) {
           this.buffer.dataSource.ol.removeFeature(this.bufferFeature);
         }
+
         this.geolocationFeature = new olFeature({ geometry });
         this.geolocationFeature.setId('geolocationFeature');
-        this.overlay.addOlFeature(this.geolocationFeature);
+        if (this.alwaysTracking) {
+          this.overlay.addOlFeature(
+            this.geolocationFeature,
+            this.positionFollower ? FeatureMotion.Move : FeatureMotion.None
+          );
+        } else {
+          this.overlay.addOlFeature(this.geolocationFeature);
+        }
 
         if (this.ol.getView().options_.buffer) {
           const bufferRadius = this.ol.getView().options_.buffer.bufferRadius;
@@ -411,10 +536,11 @@ export class IgoMap {
           this.bufferFeature.set('bufferStroke', bufferStroke);
           this.bufferFeature.set('bufferFill', bufferFill);
           this.bufferFeature.set('bufferText', bufferText);
-          this.buffer.addOlFeature(this.bufferFeature);
+          this.buffer.addOlFeature(this.bufferFeature, FeatureMotion.None);
         }
         if (first) {
           this.viewController.zoomToExtent(extent);
+          this.positionFollower = !this.positionFollower;
         }
       } else if (first) {
         const view = this.ol.getView();
@@ -422,7 +548,7 @@ export class IgoMap {
         view.setCenter(coordinates);
         view.setZoom(14);
       }
-      if (track) {
+      if (track !== true && this.alwaysTracking !== true) {
         this.unsubscribeGeolocate();
       }
       first = false;
@@ -447,7 +573,7 @@ export class IgoMap {
         tracking: true
       });
 
-      this.geolocation.on('change', evt => {
+      this.geolocation.on('change', (evt) => {
         this.geolocation$.next(this.geolocation);
       });
     } else {

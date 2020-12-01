@@ -1,9 +1,17 @@
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
 import { ToolComponent } from '@igo2/common';
-import { LayerListControlsEnum } from '@igo2/geo';
+import {
+  LayerListControlsEnum,
+  LayerListControlsOptions,
+  IgoMap,
+  ExportOptions,
+  Layer
+} from '@igo2/geo';
+import { MapState } from './../map.state';
+import { ImportExportMode, ImportExportState } from '../../import-export/import-export.state';
+import { ToolState } from '../../tool/tool.state';
 
-import { LayerListControlsOptions } from '../shared/map-details-tool.interface';
 /**
  * Tool to browse a map's layers or to choose a different map
  */
@@ -19,7 +27,6 @@ import { LayerListControlsOptions } from '../shared/map-details-tool.interface';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MapToolComponent {
-
   @Input() toggleLegendOnVisibilityChange: boolean = false;
 
   @Input() expandLegendOfVisibleLayers: boolean = false;
@@ -34,23 +41,28 @@ export class MapToolComponent {
 
   @Input() queryBadge: boolean = false;
 
+  get map(): IgoMap {
+    return this.mapState.map;
+  }
+
   get excludeBaseLayers(): boolean {
     return this.layerListControls.excludeBaseLayers || false;
   }
 
   get layerFilterAndSortOptions(): any {
-    const filterSortOptions = Object.assign({
-      showToolbar: LayerListControlsEnum.default
-    }, this.layerListControls);
+    const filterSortOptions = Object.assign(
+      {
+        showToolbar: LayerListControlsEnum.default
+      },
+      this.layerListControls
+    );
 
     switch (this.layerListControls.showToolbar) {
       case LayerListControlsEnum.always:
         filterSortOptions.showToolbar = LayerListControlsEnum.always;
-        filterSortOptions.toolbarThreshold = undefined;
         break;
       case LayerListControlsEnum.never:
         filterSortOptions.showToolbar = LayerListControlsEnum.never;
-        filterSortOptions.toolbarThreshold = undefined;
         break;
       default:
         break;
@@ -58,4 +70,19 @@ export class MapToolComponent {
     return filterSortOptions;
   }
 
+  constructor(
+    private mapState: MapState,
+    private toolState: ToolState,
+    private importExportState: ImportExportState
+  ) {}
+
+  activateExport(layer: Layer) {
+    let id = layer.id;
+    if (layer.options.workspace?.workspaceId) {
+      id = layer.options.workspace.workspaceId !== layer.id ? layer.options.workspace.workspaceId : layer.id;
+    }
+    this.importExportState.setsExportOptions({ layers: [id] } as ExportOptions);
+    this.importExportState.setMode(ImportExportMode.export);
+    this.toolState.toolbox.activateTool('importExport');
+  }
 }

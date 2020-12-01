@@ -1,8 +1,8 @@
-import { Injectable, Injector, Optional } from '@angular/core';
+import { Injectable, Optional } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import stylefunction from 'ol-mapbox-style/stylefunction';
+import stylefunction from 'ol-mapbox-style/dist/stylefunction';
 import { AuthInterceptor } from '@igo2/auth';
 import { ObjectUtils } from '@igo2/utils';
 
@@ -10,6 +10,7 @@ import {
   OSMDataSource,
   FeatureDataSource,
   XYZDataSource,
+  TileDebugDataSource,
   WFSDataSource,
   WMTSDataSource,
   WMSDataSource,
@@ -56,11 +57,10 @@ export class LayerService {
 
     if (
       layerOptions.source.options &&
-      layerOptions.source.options.optionsFromCapabilities
+      layerOptions.source.options._layerOptionsFromSource
     ) {
       layerOptions = ObjectUtils.mergeDeep(
-        (layerOptions.source.options as any)._layerOptionsFromCapabilities ||
-          {},
+        layerOptions.source.options._layerOptionsFromSource,
         layerOptions || {}
       );
     }
@@ -70,6 +70,7 @@ export class LayerService {
       case OSMDataSource:
       case WMTSDataSource:
       case XYZDataSource:
+      case TileDebugDataSource:
       case CartoDataSource:
       case TileArcGISRestDataSource:
         layer = this.createTileLayer(layerOptions as TileLayerOptions);
@@ -96,13 +97,13 @@ export class LayerService {
     return layer;
   }
 
-  createAsyncLayer(layerOptions: AnyLayerOptions): Observable<Layer> {
+  createAsyncLayer(layerOptions: AnyLayerOptions, detailedContextUri?: string): Observable<Layer> {
     if (layerOptions.source) {
       return new Observable(d => d.next(this.createLayer(layerOptions)));
     }
 
     return this.dataSourceService
-      .createAsyncDataSource(layerOptions.sourceOptions)
+      .createAsyncDataSource(layerOptions.sourceOptions, detailedContextUri)
       .pipe(
         map(source => {
           if (source === undefined) {
@@ -139,12 +140,12 @@ export class LayerService {
           layerOptions.styleByAttribute
         );
       };
-      olLayer = new VectorLayer(layerOptions);
+      olLayer = new VectorLayer(layerOptions, this.authInterceptor);
     }
 
     if (layerOptions.source instanceof ClusterDataSource) {
       const serviceStyle = this.styleService;
-      const baseStyle = layerOptions.style;
+      const baseStyle = layerOptions.clusterBaseStyle;
       layerOptions.style = feature => {
         return serviceStyle.createClusterStyle(
           feature,
@@ -152,7 +153,7 @@ export class LayerService {
           baseStyle
         );
       };
-      olLayer = new VectorLayer(layerOptions);
+      olLayer = new VectorLayer(layerOptions, this.authInterceptor);
     }
 
     const layerOptionsOl = Object.assign({}, layerOptions, {
@@ -160,10 +161,10 @@ export class LayerService {
     });
 
     if (!olLayer) {
-      olLayer = new VectorLayer(layerOptionsOl);
+      olLayer = new VectorLayer(layerOptionsOl, this.authInterceptor);
     }
 
-    this.applyMapboxStyle(olLayer, layerOptionsOl);
+    this.applyMapboxStyle(olLayer, layerOptionsOl as any);
 
     return olLayer;
   }
@@ -186,7 +187,7 @@ export class LayerService {
           layerOptions.styleByAttribute
         );
       };
-      olLayer = new VectorTileLayer(layerOptions);
+      olLayer = new VectorTileLayer(layerOptions, this.authInterceptor);
     }
 
     const layerOptionsOl = Object.assign({}, layerOptions, {
@@ -194,7 +195,7 @@ export class LayerService {
     });
 
     if (!olLayer) {
-      olLayer = new VectorTileLayer(layerOptionsOl);
+      olLayer = new VectorTileLayer(layerOptionsOl, this.authInterceptor);
     }
 
     this.applyMapboxStyle(olLayer, layerOptionsOl);

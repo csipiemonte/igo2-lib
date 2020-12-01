@@ -8,6 +8,8 @@ import { AuthService } from '@igo2/auth';
 import { LanguageService } from '@igo2/core';
 import { ObjectUtils } from '@igo2/utils';
 
+import pointOnFeature from '@turf/point-on-feature';
+
 import { FEATURE, Feature } from '../../../feature';
 import { GoogleLinks } from './../../../utils/googleLinks';
 
@@ -62,7 +64,7 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
 
     this.languageService.translate
       .get(this.options.title)
-      .subscribe(title => this.title$.next(title));
+      .subscribe((title) => this.title$.next(title));
 
     const authService = injector.get(AuthService);
     if (this.settings.length) {
@@ -95,10 +97,7 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
         : undefined;
     const types =
       this.options.params && this.options.params.type
-        ? this.options.params.type
-            .replace(/\s/g, '')
-            .toLowerCase()
-            .split(',')
+        ? this.options.params.type.replace(/\s/g, '').toLowerCase().split(',')
         : [
             'adresses',
             'codes-postaux',
@@ -142,6 +141,12 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
               hashtags: ['route']
             },
             {
+              title: 'igo.geo.search.icherche.type.intersection',
+              value: 'intersections',
+              enabled: types.indexOf('intersections') !== -1,
+              hashtags: ['intersection', '+']
+            },
+            {
               title: 'igo.geo.search.icherche.type.city',
               value: 'municipalites',
               enabled: types.indexOf('municipalites') !== -1,
@@ -179,16 +184,39 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
               hashtags: ['lieu']
             },
             {
+              title: 'igo.geo.search.icherche.type.exit',
+              value: 'sorties-autoroute',
+              enabled: types.indexOf('sorties-autoroute') !== -1,
+              hashtags: ['sortie', 'sorties', 'exit']
+            },
+            {
+              title: 'igo.geo.search.icherche.type.km',
+              value: 'bornes-km',
+              enabled: types.indexOf('bornes-km') !== -1,
+              hashtags: ['borne', 'bornes', 'repère', 'km']
+            },
+            {
+              title: 'igo.geo.search.icherche.type.gcc',
+              value: 'bornes-gcc',
+              enabled: types.indexOf('bornes-gcc') !== -1,
+              hashtags: ['borne', 'bornes', 'repère', 'gcc', 'ccg']
+            },
+            {
+              title: 'igo.geo.search.icherche.type.cn',
+              value: 'bornes-cn',
+              enabled: types.indexOf('bornes-cn') !== -1,
+              hashtags: ['borne', 'bornes', 'cn']
+            },
+            {
               title: 'igo.geo.search.icherche.type.sumi',
               value: 'bornes-sumi',
               enabled: types.indexOf('bornes-sumi') !== -1,
               hashtags: ['borne', 'bornes', 'sumi']
             },
             {
-              title: 'igo.geo.search.icherche.type.km',
-              value: 'bornes-km',
-              enabled: false,
-              hashtags: ['borne', 'bornes', 'repère', 'km']
+              title: 'igo.geo.search.icherche.type.cadastre',
+              value: 'cadastre',
+              enabled: types.indexOf('cadastre') !== -1
             }
           ]
         },
@@ -294,7 +322,7 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
 
     return this.http.get(`${this.searchUrl}/geocode`, { params }).pipe(
       map((response: IChercheResponse) => this.extractResults(response)),
-      catchError(err => {
+      catchError((err) => {
         err.error.toDisplay = true;
         err.error.title = this.languageService.translate.instant(
           this.getDefaultOptions().title
@@ -308,18 +336,18 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
     return this.http
       .get(`${this.searchUrl}/types`)
       .subscribe((types: string[]) => {
-        const typeSetting = this.settings.find(s => s.name === 'type');
-        typeSetting.values.forEach(v => {
+        const typeSetting = this.settings.find((s) => s.name === 'type');
+        typeSetting.values.forEach((v) => {
           const regex = new RegExp(`^${v.value}(\\.|$)`);
-          const typesMatched = types.filter(value => regex.test(value));
+          const typesMatched = types.filter((value) => regex.test(value));
           v.available = typesMatched.length > 0;
           if (v.value === 'lieux') {
             this.hashtagsLieuxToKeep = [
               ...(new Set(
                 typesMatched
-                  .map(t => t.split('.'))
+                  .map((t) => t.split('.'))
                   .reduce((a, b) => a.concat(b))
-                  .filter(t => t !== 'lieux')
+                  .filter((t) => t !== 'lieux')
               ) as any)
             ];
           }
@@ -358,7 +386,9 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
       queryParams.type = 'lieux';
     }
 
-    return new HttpParams({ fromObject: ObjectUtils.removeUndefined(queryParams) });
+    return new HttpParams({
+      fromObject: ObjectUtils.removeUndefined(queryParams)
+    });
   }
 
   private extractResults(response: IChercheResponse): SearchResult<Feature>[] {
@@ -367,7 +397,10 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
     });
   }
 
-  private dataToResult(data: IChercheData, response?: IChercheResponse): SearchResult<Feature> {
+  private dataToResult(
+    data: IChercheData,
+    response?: IChercheResponse
+  ): SearchResult<Feature> {
     const properties = this.computeProperties(data);
     const id = [this.getId(), properties.type, properties.code].join('.');
 
@@ -398,7 +431,9 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
         title: data.properties.nom,
         titleHtml: titleHtml + subtitleHtml + subtitleHtml2,
         icon: data.icon || 'map-marker',
-        nextPage: response.features.length % +this.options.params.limit === 0 && +this.options.params.page < 10
+        nextPage:
+          response.features.length % +this.options.params.limit === 0 &&
+          +this.options.params.page < 10
       }
     };
   }
@@ -406,7 +441,7 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
   private computeProperties(data: IChercheData): { [key: string]: any } {
     const properties = ObjectUtils.removeKeys(
       data.properties,
-      IChercheSearchSource.propertiesBlacklist
+      IChercheSearchSource.propertiesBlacklist,
     );
 
     if (data.geometry === undefined) {
@@ -417,11 +452,57 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
       GoogleMaps: string;
       GoogleStreetView?: string;
     } = {
-      GoogleMaps: GoogleLinks.getGoogleMapsLink(
+      GoogleMaps: ''
+    };
+
+    let googleMaps;
+    if (data.geometry.type === 'Point') {
+      googleMaps = GoogleLinks.getGoogleMapsCoordLink(
         data.geometry.coordinates[0],
         data.geometry.coordinates[1]
-      )
-    };
+      );
+    } else {
+      const point = pointOnFeature(data.geometry);
+      googleMaps = GoogleLinks.getGoogleMapsCoordLink(
+        point.geometry.coordinates[0],
+        point.geometry.coordinates[1]
+      );
+    }
+
+    let googleMapsNom;
+    if (data.index === 'routes') {
+      googleMapsNom = GoogleLinks.getGoogleMapsNameLink(
+        data.properties.nom + ', ' + data.properties.municipalite
+      );
+    } else if (data.index === 'municipalites') {
+      googleMapsNom = GoogleLinks.getGoogleMapsNameLink(
+        data.properties.nom + ', ' + 'ville'
+      );
+    } else if (data.index === 'mrc') {
+      googleMapsNom = GoogleLinks.getGoogleMapsNameLink(
+        'mrc+' + data.properties.nom
+      );
+    } else if (data.index === 'regadmin') {
+      googleMapsNom = GoogleLinks.getGoogleMapsNameLink(
+        data.properties.nom + ',+QC'
+      );
+    } else {
+      googleMapsNom = GoogleLinks.getGoogleMapsNameLink(
+        data.properties.nom || data.highlight.title
+      );
+    }
+
+    googleLinksProperties.GoogleMaps =
+      '<a href=' +
+      googleMaps +
+      ' target="_blank">' +
+      this.languageService.translate.instant('igo.geo.searchByCoord') +
+      '</a> <br /> <a href=' +
+      googleMapsNom +
+      ' target="_blank">' +
+      this.languageService.translate.instant('igo.geo.searchByName') +
+      '</a>';
+
     if (data.geometry.type === 'Point') {
       googleLinksProperties.GoogleStreetView = GoogleLinks.getGoogleStreetViewLink(
         data.geometry.coordinates[0],
@@ -429,10 +510,17 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
       );
     }
 
+    const routing: {
+      Route: string
+    } = {
+      Route: '<span class="routing"> <u>' + this.languageService.translate.instant('igo.geo.seeRouting') + '</u> </span>'
+    };
+
     return Object.assign(
       { type: data.index },
       properties,
-      googleLinksProperties
+      googleLinksProperties,
+      routing
     );
   }
 
@@ -444,10 +532,10 @@ export class IChercheSearchSource extends SearchSource implements TextSearch {
     // Keep hashtags for "lieux"
     const hashtags = term.match(/(#[^\s]+)/g) || [];
     let keep = false;
-    keep = hashtags.some(hashtag => {
+    keep = hashtags.some((hashtag) => {
       const hashtagKey = hashtag.substring(1);
       return this.hashtagsLieuxToKeep.some(
-        h =>
+        (h) =>
           h
             .toLowerCase()
             .normalize('NFD')
@@ -512,7 +600,7 @@ export class IChercheReverseSearchSource extends SearchSource
 
     this.languageService.translate
       .get(this.options.title)
-      .subscribe(title => this.title$.next(title));
+      .subscribe((title) => this.title$.next(title));
 
     const authService = injector.get(AuthService);
     if (this.settings.length) {
@@ -537,10 +625,7 @@ export class IChercheReverseSearchSource extends SearchSource
   protected getDefaultOptions(): SearchSourceOptions {
     const types =
       this.options.params && this.options.params.type
-        ? this.options.params.type
-            .replace(/\s/g, '')
-            .toLowerCase()
-            .split(',')
+        ? this.options.params.type.replace(/\s/g, '').toLowerCase().split(',')
         : ['adresses', 'municipalites', 'mrc', 'regadmin'];
 
     return {
@@ -646,8 +731,8 @@ export class IChercheReverseSearchSource extends SearchSource
     return this.http
       .get(`${this.searchUrl}/types`)
       .subscribe((types: string[]) => {
-        const typeSetting = this.settings.find(s => s.name === 'type');
-        typeSetting.values.forEach(v => {
+        const typeSetting = this.settings.find((s) => s.name === 'type');
+        typeSetting.values.forEach((v) => {
           v.available = types.indexOf(v.value as string) > -1;
         });
       });
@@ -695,9 +780,9 @@ export class IChercheReverseSearchSource extends SearchSource
         subtitle = data.properties.municipalite + ' (Arrondissement)';
         break;
       default:
-        const typeSetting = this.settings.find(s => s.name === 'type');
+        const typeSetting = this.settings.find((s) => s.name === 'type');
         const type = typeSetting.values.find(
-          t => t.value === data.properties.type
+          (t) => t.value === data.properties.type
         );
         if (type) {
           subtitle = this.languageService.translate.instant(type.title);
@@ -742,7 +827,14 @@ export class IChercheReverseSearchSource extends SearchSource
       data.properties,
       IChercheReverseSearchSource.propertiesBlacklist
     );
-    return properties;
+
+    const routing: {
+      Route: string
+    } = {
+      Route: '<span class="routing"> <u>' + this.languageService.translate.instant('igo.geo.seeRouting') + '</u> </span>'
+    };
+
+    return Object.assign(properties, routing);
   }
 
   private computeExtent(

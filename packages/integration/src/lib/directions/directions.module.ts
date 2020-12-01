@@ -4,18 +4,17 @@ import {
   CUSTOM_ELEMENTS_SCHEMA
 } from '@angular/core';
 
-import { IgoRoutingModule } from '@igo2/geo';
+import { IgoDirectionsModule } from '@igo2/geo';
 import { DirectionsToolComponent } from './directions-tool/directions-tool.component';
 
 @NgModule({
-  imports: [IgoRoutingModule],
+  imports: [IgoDirectionsModule],
   declarations: [DirectionsToolComponent],
   exports: [DirectionsToolComponent],
-  entryComponents: [DirectionsToolComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class IgoAppDirectionsModule {
-  static forRoot(): ModuleWithProviders {
+  static forRoot(): ModuleWithProviders<IgoAppDirectionsModule> {
     return {
       ngModule: IgoAppDirectionsModule,
       providers: []

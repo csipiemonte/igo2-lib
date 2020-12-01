@@ -13,11 +13,8 @@
     }
 }
 
-.title, .radius-form {
-    margin-left: 5px;
-}
-
 .title {
+    margin-left: 5px;
     font-size: initial;
 }
 
@@ -43,7 +40,7 @@
 }
 
 .buttons {
-    margin-top: 10px;
+    margin-top: 15px;
 }
 
 .search-button {
@@ -52,8 +49,7 @@
 }
 
 .remove-button {
-    left: 75px;
-    margin: 15px;
+    margin: 12px;
     width: 150px;
 }
 
@@ -68,7 +64,7 @@
 }
 
 .thematics {
-    max-height: 150px;
+    max-height: 30%;
     overflow: auto;
     margin-top: 5px;
     width: 98%;
@@ -85,17 +81,22 @@
     margin-right: 5px;
 }
 
-.radius {
-    width: 90%;
+.buffer-unit, .radius-unit {
+    display: flex;
+    width: 100%;
+    margin-left: 2px;
+    padding: 5px;
 }
 
-.radius ::ng-deep .mat-form-field-infix {
-    display: inline-flex;
+.radius, .buffer {
+    display: flex;
+    flex-flow: column nowrap;
+    width: 110%;
 }
 
 .unit-field {
-    padding-left: 5px;
-    padding-right: 5px;
+    width: 110px;
+    margin-left: 30px;
 }
 
 .example-tree-invisible {

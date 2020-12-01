@@ -1,3 +1,9 @@
+[![Angular Style Guide](https://mgechev.github.io/angular2-style-guide/images/badge.svg)](https://angular.io/styleguide)
+[![master Status](https://github.com/infra-geo-ouverte/igo2-lib/workflows/complete/badge.svg)](https://github.com/infra-geo-ouverte/igo2-lib/actions?query=workflow/complete)
+[![Dependencies Status](https://david-dm.org/infra-geo-ouverte/igo2-lib.svg)](https://david-dm.org/infra-geo-ouverte/igo2-lib)
+[![devDependencies Status](https://david-dm.org/infra-geo-ouverte/igo2-lib/dev-status.svg)](https://david-dm.org/infra-geo-ouverte/igo2-lib?type=dev)
+[![Known Vulnerabilities](https://snyk.io/test/github/infra-geo-ouverte/igo2-lib/badge.svg)](https://snyk.io/test/github/infra-geo-ouverte/igo2-lib)
+
 # IGO2 Library
 
 This repository is home to the IGO2 Library on which IGO2 is built. IGO2 and this library are open source projects using Angular, Angular Material and OpenLayers. While IGO2 is mapping oriented, this library can easily serve other purposes as it contains many components and services that may benefit any web application.
@@ -40,6 +46,14 @@ Example:
 
 ### Developer Installation
 
+Require:
+
+| IGO2 version | Node version |
+| ------------ | ------------ |
+| > 1.5.x      | >= 12, <= 14 |
+| < 1.5.x      | >= 8, <= 11  |
+| 0.x.x        | >= 6, <= 10  |
+
 If you want to develop in IGO2 Library, it can be installed by:
 
 1.  Clone current repository: using `git clone https://github.com/infra-geo-ouverte/igo2-lib.git`
@@ -51,7 +65,8 @@ If you want to develop in IGO2 Library, it can be installed by:
 ### Development server
 
 Run `npm start` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the demo's source files.
-If you modify files from the lib (../packages/*) you must run:
+If you modify files from the lib (../packages/\*) you must run:
+
 1. npm run build.libs to rebuild all the libs
 2. OR
 3. npm run build.geo if you have only modifyed the geo package or whatever part of the lib...

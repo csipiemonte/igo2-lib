@@ -4,6 +4,7 @@ import olFormatFilter from 'ol/format/filter/Filter';
 import { DataSource } from '../../datasource/shared/datasources/datasource';
 import { DataSourceOptions } from '../../datasource/shared/datasources/datasource.interface';
 import { OgcFilterOperatorType } from './ogc-filter.enum';
+import { BehaviorSubject } from 'rxjs';
 
 export interface OgcFilter extends olFormatFilter {}
 
@@ -83,6 +84,8 @@ export interface OgcFilterableDataSourceOptions extends DataSourceOptions {
 }
 export interface OgcFilterableDataSource extends DataSource {
   options: OgcFilterableDataSourceOptions;
+  ogcFilters$?: BehaviorSubject<OgcFiltersOptions>;
+  setOgcFilters(ogcFilters: OgcFiltersOptions, triggerEvent?: boolean );
 }
 
 export interface IgoLogicalArrayOptions {
@@ -112,7 +115,9 @@ export interface OgcFilterAttributeOptions {
 
 export interface OgcFilterDuringOptions extends OgcFilterAttributeOptions {
   begin: string;
-  end: string;
+  end?: string;
+  step: string;
+  restrictToStep?: boolean;
 }
 export interface OgcFilterIsBetweenOptions extends OgcFilterAttributeOptions {
   lowerBoundary: number;
@@ -138,6 +143,8 @@ export interface OgcInterfaceFilterOptions {
   active?: boolean;
   begin?: string;
   end?: string;
+  step?: string;
+  restrictToStep?: boolean;
   escapeChar?: string;
   expression?: string | number;
   extent?: [number, number, number, number];
@@ -145,6 +152,7 @@ export interface OgcInterfaceFilterOptions {
   geometry?: olGeometry;
   geometryName?: string;
   igoSpatialSelector?: string;
+  igoSNRC?: string;
   level?: number;
   lowerBoundary?: number;
   matchCase?: boolean;
