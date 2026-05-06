@@ -1,6 +1,6 @@
 {
   "name": "@igo2/utils",
-  "version": "20.0.0",
+  "version": "20.1.0",
   "description": "IGO Library",
   "author": "IGO Community",
   "keywords": [
@@ -10,7 +10,8 @@
   "homepage": "https://github.com/infra-geo-ouverte/igo2-lib#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/infra-geo-ouverte/igo2-lib.git"
+    "url": "git+https://github.com/infra-geo-ouverte/igo2-lib.git",
+    "directory": "packages/utils"
   },
   "bugs": {
     "url": "https://github.com/infra-geo-ouverte/igo2-lib/issues"

@@ -149,8 +149,7 @@ export class EditionWorkspaceService {
       : wmsLinkId),
       (layer.options.linkedLayers.links = clonedLinks));
     interface WFSoptions
-      extends WFSDataSourceOptions,
-        OgcFilterableDataSourceOptions {}
+      extends WFSDataSourceOptions, OgcFilterableDataSourceOptions {}
 
     layer.createLink();
 
@@ -776,14 +775,17 @@ export class EditionWorkspaceService {
     wfsOlLayer.setLoader(loader);
     wfsOlLayer.refresh();
 
+    const id = String(layer.id);
     for (const lay of map.layerController.all) {
       if (
         isLayerItem(lay) &&
         lay.id !== layer.id &&
-        lay.options.linkedLayers?.linkId.includes(
-          layer.id.substr(0, layer.id.indexOf('.') - 1)
-        ) &&
-        lay.options.linkedLayers?.linkId.includes('WmsWorkspaceTableSrc')
+        lay.options.linkedLayers?.linkId
+          .toString()
+          .includes(id.substr(0, id.indexOf('.') - 1)) &&
+        lay.options.linkedLayers?.linkId
+          .toString()
+          .includes('WmsWorkspaceTableSrc')
       ) {
         const wmsOlLayer = lay.dataSource.ol as olSourceImageWMS;
         const params = wmsOlLayer.getParams();
